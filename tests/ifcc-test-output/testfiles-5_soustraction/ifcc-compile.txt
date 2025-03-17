@@ -1,0 +1,3 @@
+Déclaration de la variable x avec index 0
+
+exit status: 0
