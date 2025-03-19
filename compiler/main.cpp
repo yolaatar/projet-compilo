@@ -9,61 +9,53 @@
 #include "generated/ifccBaseVisitor.h"
 
 #include "CodeGenVisitor.h"
-#include "SymboleTableVisitor.h"
+#include "SymbolTableVisitor.h"
 
 using namespace antlr4;
 using namespace std;
 
 int main(int argn, const char **argv)
 {
-    stringstream in;
-    if (argn == 2)
-    {
-        ifstream lecture(argv[1]);
-        if (!lecture.good())
-        {
-            cerr << "error: cannot read file: " << argv[1] << endl;
-            exit(1);
-        }
-        in << lecture.rdbuf();
-    }
-    else
-    {
-        cerr << "usage: ifcc path/to/file.c" << endl;
-        exit(1);
-    }
+  stringstream in;
+  if (argn==2)
+  {
+     ifstream lecture(argv[1]);
+     if( !lecture.good() )
+     {
+         cerr<<"error: cannot read file: " << argv[1] << endl ;
+         exit(1);
+     }
+     in << lecture.rdbuf();
+  }
+  else
+  {
+      cerr << "usage: ifcc path/to/file.c" << endl ;
+      exit(1);
+  }
+  
+  ANTLRInputStream input(in.str());
 
-    ANTLRInputStream input(in.str());
+  ifccLexer lexer(&input);
+  CommonTokenStream tokens(&lexer);
 
-    ifccLexer lexer(&input);
-    CommonTokenStream tokens(&lexer);
+  tokens.fill();
 
-    tokens.fill();
+  ifccParser parser(&tokens);
+  tree::ParseTree* tree = parser.axiom();
 
-    ifccParser parser(&tokens);
-    tree::ParseTree *tree = parser.axiom();
+  if(parser.getNumberOfSyntaxErrors() != 0)
+  {
+      cerr << "error: syntax error during parsing" << endl;
+      exit(1);
+  }
 
-    if (parser.getNumberOfSyntaxErrors() != 0)
-    {
-        cerr << "error: syntax error during parsing" << endl;
-        exit(1);
-    }
+  SymbolTableVisitor stv;
+  stv.visit(tree);
 
-    // Après l'analyse statique :
-    SymbolTableVisitor symVisitor;
-    symVisitor.visit(tree);
-    symVisitor.checkUnusedVariables();
-    if (symVisitor.errorOccurred)
-    {
-        std::cerr << "Erreurs détectées dans la table des symboles. Abandon de la compilation.\n";
-        return 1;
-    }
+  if (stv.error == 0){
+    CodeGenVisitor cgv(stv);
+    cgv.visit(tree); 
+  }
 
-    // Transfert de la table des symboles au générateur de code
-    CodeGenVisitor codeGenVisitor;
-    codeGenVisitor.symbolTable = symVisitor.symbolTable; // ASSUREZ-VOUS DE FAIRE CE TRANSFERT
-
-    codeGenVisitor.visit(tree);
-
-    return 0;
+  return 0;
 }

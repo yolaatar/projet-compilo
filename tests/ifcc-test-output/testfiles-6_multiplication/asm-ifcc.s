@@ -1,32 +1,16 @@
-.section __TEXT,__text,regular,pure_instructions
-.globl _main
-_main:
-    sub sp, sp, #16
-    str wzr, [sp, #12]
-    mov w0, #5
-    mov w8, w0
-    mov w0, w8
-    mov w8, w0
-    mov w0, w8
-    str w0, [sp, #8]
-    mov w0, #4
-    mov w8, w0
-    mov w0, w8
-    mov w8, w0
-    mov w0, w8
-    str w0, [sp, #12]
-    ldr w0, [sp, #8]
-    mov w8, w0
-    ldr w0, [sp, #12]
-    mul w8, w8, w0
-    mov w0, w8
-    mov w8, w0
-    mov w0, w8
-    str w0, [sp, #16]
-    ldr w0, [sp, #16]
-    mov w8, w0
-    mov w0, w8
-    mov w8, w0
-    mov w0, w8
-    add sp, sp, #16
+.globl main
+ main: 
+    pushq %rbp
+    movq %rsp, %rbp
+    movl $5, %eax
+    movl %eax, -4(%rbp)
+    movl $4, %eax
+    movl %eax, -8(%rbp)
+    movl -4(%rbp), %eax
+    movl %eax, -16(%rbp)
+    movl -8(%rbp), %eax
+    imul -16(%rbp), %eax
+    movl %eax, -12(%rbp)
+    movl -12(%rbp), %eax
+    popq %rbp
     ret

@@ -1,5 +1,3 @@
-Déclaration de la variable x avec index 0
-Déclaration de la variable a avec index 4
-Avertissement : la variable a est déclarée mais jamais utilisée.
+[WARNING] a is defined but not used
 
 exit status: 0

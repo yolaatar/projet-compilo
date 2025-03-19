@@ -2,37 +2,30 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' stmt+ '}' ;
+prog : 'int' 'main' '(' ')' '{' inst* return_stmt '}' ;
 
-stmt : decl ';'                   // déclaration de variable (avec ou sans initialisation)
-     | assignment ';'             // affectation à une variable
-     | return_stmt ';'            // instruction de retour
-     ;
+inst : declaration 
+     | assignment ;
 
-decl : 'int' ID ('=' expr)? ;      // par exemple, "int x;" ou "int x = expr;"
+declaration : 'int' decl (',' decl)* ';' ;
+decl : ID ('=' expr)? ;
 
-assignment : ID '=' expr ;        // affectation : x = expr;
+assignment : ID '=' expr ';' ;
 
-return_stmt : RETURN expr ;       // retour : return expr;
+return_stmt : RETURN expr ';' ;
 
-expr : additiveExpr ;             // point d'entrée pour l'expression
+expr
+    : expr '*' expr               # MulExpr
+    | expr op=('+'|'-') expr      # AddSubExpr
+    | '(' expr ')'                # ParExpr
+    | ID                          # IdExpr
+    | CONST                       # ConstExpr
+    ;
 
-// Opérateurs additifs (gère + et -) avec associativité gauche
-additiveExpr : multiplicativeExpr ( ('+' | '-') multiplicativeExpr )* ;
+RETURN : 'return' ;
+CONST : [0-9]+ ;
+ID : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-// Opérateurs multiplicatifs (gère * et /) avec associativité gauche
-multiplicativeExpr : primaryExpr ( ('*' | '/') primaryExpr )* ;
-
-// Expression primaire : constante, variable ou parenthésée
-primaryExpr : CONST            # ConstExpr
-            | ID               # ExprVariable
-            | '(' expr ')'     # ParensExpr
-            ;
-
-RETURN  : 'return' ;
-ID      : [a-zA-Z_][a-zA-Z0-9_]* ;
-CONST   : [0-9]+ ;
-
-COMMENT   : '/*' .*? '*/' -> skip ;
+COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
-WS        : [ \t\r\n]+ -> skip ;
+WS : [ \t\r\n] -> channel(HIDDEN);

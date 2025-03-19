@@ -1,6 +1,3 @@
-Déclaration de la variable x avec index 0
-Déclaration de la variable y avec index 4
-Déclaration de la variable z avec index 8
-Avertissement : la variable z est déclarée mais jamais utilisée.
+[WARNING] z is defined but not used
 
 exit status: 0

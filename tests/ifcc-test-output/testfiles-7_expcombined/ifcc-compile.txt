@@ -1,5 +1,2 @@
-Déclaration de la variable x avec index 0
-Déclaration de la variable a avec index 4
-Déclaration de la variable c avec index 8
 
 exit status: 0
