@@ -51,17 +51,42 @@ antlrcpp::Any CodeGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitMulExpr(ifccParser::MulExprContext *ctx) {
-    visit(ctx->expr(0));
 
+antlrcpp::Any CodeGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx) {
+    // Parcours les sous-expressions gauche et droite
+    this->visit(ctx->expr(0));  // Première expression (gauche)
     std::string tmp = newTemp();
     int offset = stv.symbolTable[tmp].offset;
-    std::cout << "    movl %eax, "<< offset <<"(%rbp)\n";
+    if (ctx->op->getText()=="*"){ //MULTIPLICATION
+        std::cout << "    movl %eax, "<< std::to_string(offset)<<"(%rbp)  \n";
 
-    visit(ctx->expr(1));
+        this->visit(ctx->expr(1));  // Deuxième expression (droite)
+        std::cout << "    imull "<< std::to_string(offset)<<"(%rbp), %eax\n";
+    }
+    else if (ctx->op->getText()=="/"){ //DIVISION
+        std::cout << "    movl %eax, "<< std::to_string(offset)<<"(%rbp)  \n";
 
-    std::cout << "    imul " << offset <<"(%rbp), %eax\n";
+        this->visit(ctx->expr(1));  // Deuxième expression (droite)
+        std::string tmp2 = newTemp();
+        int offset2 = stv.symbolTable[tmp2].offset;
+        std::cout << "    movl %eax, "<< std::to_string(offset2)<<"(%rbp)  \n";
+        std::cout << "    movl "<< std::to_string(offset)<<"(%rbp), %eax  \n"; // je met le dividende dans le eax (la division en assembleur est comme ça)
+        std::cout << "    cltd\n";  // Signe-étendre EAX en EDX:EAX
+        std::cout << "    idivl "<< std::to_string(offset2)<<"(%rbp)\n";
+    }
+    else if (ctx->op->getText()=="%"){ // MODULO
+        std::cout << "    movl %eax, "<< std::to_string(offset)<<"(%rbp)  \n";
 
+        this->visit(ctx->expr(1));  // Deuxième expression (droite)
+        std::string tmp2 = newTemp();
+        int offset2 = stv.symbolTable[tmp2].offset;
+        std::cout << "    movl %eax, "<< std::to_string(offset2)<<"(%rbp)  \n";
+        std::cout << "    movl "<< std::to_string(offset)<<"(%rbp), %eax  \n"; // je met le dividende dans le eax (la division en assembleur est comme ça)
+        std::cout << "    cltd\n";  // Signe-étendre EAX en EDX:EAX
+        std::cout << "    idivl "<< std::to_string(offset2)<<"(%rbp)\n";
+        std::cout << "    movl %edx, %eax  \n";
+    }
+    
     return 0;
 }
 
