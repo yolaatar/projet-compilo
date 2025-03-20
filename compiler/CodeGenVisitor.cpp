@@ -90,6 +90,36 @@ antlrcpp::Any CodeGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx){
+    visit(ctx->expr(0));
+    std::string tmp = newTemp();
+    int offset = stv.symbolTable[tmp].offset;
+    std::cout << "    movl %eax, "<<offset<<"(%rbp)\n";
+    visit(ctx->expr(1));
+    std::cout << "    andl "<< offset <<"(%rbp), %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext *ctx){
+    visit(ctx->expr(0));
+    std::string tmp = newTemp();
+    int offset = stv.symbolTable[tmp].offset;
+    std::cout << "    movl %eax, "<<offset<<"(%rbp)\n";
+    visit(ctx->expr(1));
+    std::cout << "    xorl "<< offset <<"(%rbp), %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext *ctx){
+    visit(ctx->expr(0));
+    std::string tmp = newTemp();
+    int offset = stv.symbolTable[tmp].offset;
+    std::cout << "    movl %eax, "<<offset<<"(%rbp)\n";
+    visit(ctx->expr(1));
+    std::cout << "    orl "<< offset <<"(%rbp), %eax\n";
+    return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx){
     std::string varName = ctx->ID()->getText();
     int offset = stv.symbolTable[varName].offset;

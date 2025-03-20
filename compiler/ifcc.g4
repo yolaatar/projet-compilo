@@ -15,9 +15,12 @@ assignment : ID '=' expr ';' ;
 return_stmt : RETURN expr ';' ;
 
 expr
-    : expr '*' expr               # MulExpr
+    : expr op=('*'|'/'|'%') expr  #MulDivExpr 
     | expr op=('+'|'-') expr      # AddSubExpr
     | '(' expr ')'                # ParExpr
+    | expr '&' expr                #EtLogExpr
+    | expr '^' expr                #OuExcExpr
+    | expr '|' expr                #OuIncExpr
     | ID                          # IdExpr
     | CONST                       # ConstExpr
     ;
