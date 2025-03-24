@@ -90,6 +90,43 @@ antlrcpp::Any CodeGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitCompExpr(ifccParser::CompExprContext *ctx){
+    visit(ctx->expr(0));
+    std::string tmp = newTemp();
+    int offset = stv.symbolTable[tmp].offset;
+    std::cout << "    movl %eax, "<<offset<<"(%rbp)\n";
+    visit(ctx->expr(1));
+    std::cout << "    cmpl "<< offset <<"(%rbp), %eax\n";
+    if (ctx->op->getText() == "<") {
+        std::cout << "    setg %al\n";  // Si inférieur (SF ≠ OF), AL = 1
+    } else if (ctx->op->getText() == "<=") {
+        std::cout << "    setge %al\n"; // Si inférieur ou égal (ZF=1 ou SF ≠ OF), AL = 1
+    } else if (ctx->op->getText() == ">") {
+        std::cout << "    setl %al\n";  // Si supérieur (ZF=0 et SF=OF), AL = 1
+    } else if (ctx->op->getText() == ">=") {
+        std::cout << "    setle %al\n"; // Si supérieur ou égal (SF=OF), AL = 1
+    }
+    
+    std::cout << "    movzbl %al, %eax\n"; // Étend AL (8 bits) en EAX (32 bits)
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitEgalExpr(ifccParser::EgalExprContext *ctx){
+    visit(ctx->expr(0));
+    std::string tmp = newTemp();
+    int offset = stv.symbolTable[tmp].offset;
+    std::cout << "    movl %eax, "<<offset<<"(%rbp)\n";
+    visit(ctx->expr(1));
+    std::cout << "    cmpl "<< offset <<"(%rbp), %eax\n";
+    if (ctx->op->getText() == "==") {
+        std::cout << "    sete %al\n";  // Si égal (ZF=1), AL = 1
+    } else if (ctx->op->getText() == "!=") {
+        std::cout << "    setne %al\n"; // Si différent (ZF=0), AL = 1
+    }
+    std::cout << "    movzbl %al, %eax\n"; // Étend AL (8 bits) en EAX (32 bits)
+    return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx){
     visit(ctx->expr(0));
     std::string tmp = newTemp();

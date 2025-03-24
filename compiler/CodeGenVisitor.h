@@ -18,6 +18,8 @@ class  CodeGenVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitAddSubExpr(ifccParser::AddSubExprContext *ctx);
         virtual antlrcpp::Any visitMulDivExpr(ifccParser::MulDivExprContext *ctx);
         virtual antlrcpp::Any visitEtLogExpr(ifccParser::EtLogExprContext *ctx);
+        virtual antlrcpp::Any visitCompExpr(ifccParser::CompExprContext *ctx);
+        virtual antlrcpp::Any visitEgalExpr(ifccParser::EgalExprContext *ctx);
         virtual antlrcpp::Any visitOuExcExpr(ifccParser::OuExcExprContext *ctx);
         virtual antlrcpp::Any visitOuIncExpr(ifccParser::OuIncExprContext *ctx);
         virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *ctx);
