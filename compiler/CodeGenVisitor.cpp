@@ -14,6 +14,8 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     visitChildren(ctx);
     
+    std::cout << "end:\n";
+    std::cout << "    popq %rbp\n";
     std::cout << "    ret\n";
 
     return 0;
@@ -24,8 +26,22 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 {
     visitChildren(ctx);
 
-    std::cout << "    popq %rbp\n";
+    std::cout << "    jmp end\n";
 
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx) {
+    visit(ctx->expr());
+    std::cout<<"    negl %eax\n";
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx){
+    visit(ctx->expr());
+    std::cout<<"    cmpl $0, %eax\n";
+    std::cout<<"    sete %al\n";
+    std::cout<<"    movzbl %al, %eax\n";
     return 0;
 }
 
