@@ -18,5 +18,7 @@
     addl -24(%rbp), %eax
     movl %eax, -12(%rbp)
     movl -4(%rbp), %eax
+    jmp end
+end:
     popq %rbp
     ret

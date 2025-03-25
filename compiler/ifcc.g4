@@ -2,10 +2,11 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' inst* return_stmt '}' ;
+prog : 'int' 'main' '(' ')' '{' inst* '}' ;
 
 inst : declaration 
-     | assignment ;
+     | assignment 
+     | return_stmt ;
 
 declaration : 'int' decl (',' decl)* ';' ;
 decl : ID ('=' expr)? ;
