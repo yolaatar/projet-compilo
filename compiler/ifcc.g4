@@ -15,7 +15,9 @@ assignment : ID '=' expr ';' ;
 return_stmt : RETURN expr ';' ;
 
 expr
-    : expr op=('*'|'/'|'%') expr         # MulDivExpr 
+    : '-' expr                           # MoinsExpr
+    | '!' expr                           # NotExpr
+    | expr op=('*'|'/'|'%') expr         # MulDivExpr 
     | expr op=('+'|'-') expr             # AddSubExpr
     | '(' expr ')'                       # ParExpr
     | expr op=('<'|'>'|'<='|'>=') expr   # CompExpr
