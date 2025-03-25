@@ -1,4 +1,4 @@
 /tests/ifcc-test-output/
 /compiler/build
 /compiler/generated
-*.mk
+/compiler/*.mk
