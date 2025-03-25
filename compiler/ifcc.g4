@@ -1,8 +1,12 @@
 grammar ifcc;
 
-axiom : prog EOF ;
+axiom : prog* EOF ;
 
-prog : 'int' 'main' '(' ')' '{' inst* '}' ;
+prog : type ID '(' decl_params ')' '{' inst* '}' ;
+
+decl_params : ( param (',' param)* )? ;
+param : 'int' ID ;
+
 
 inst : declaration 
      | assignment 
@@ -14,6 +18,8 @@ decl : ID ('=' expr)? ;
 assignment : ID '=' expr ';' ;
 
 return_stmt : RETURN expr ';' ;
+
+type : 'int' | 'void' ;
 
 expr
     : '-' expr                           # MoinsExpr
@@ -33,7 +39,6 @@ expr
 RETURN : 'return' ;
 CONST : [0-9]+ ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
-
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
 WS : [ \t\r\n] -> channel(HIDDEN);
