@@ -1,0 +1,3 @@
+[WARNING] a is defined but not used
+
+exit status: 0

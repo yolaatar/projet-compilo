@@ -25,6 +25,7 @@ class  CodeGenVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *ctx);
         virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
         virtual antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override;
+        virtual antlrcpp::Any visitFunction_call(ifccParser::Function_callContext *ctx) override;
 
         private:
         int tempCpt = 1;

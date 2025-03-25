@@ -5,11 +5,11 @@ axiom : prog EOF ;
 prog : 'int' 'main' '(' ')' '{' inst* return_stmt '}' ;
 
 inst : declaration 
-     | assignment ;
+     | assignment 
+     | function_call ';' ;
 
 declaration : 'int' decl (',' decl)* ';' ;
 decl : ID ('=' expr)? ;
-
 assignment : ID '=' expr ';' ;
 
 return_stmt : RETURN expr ';' ;
@@ -23,9 +23,11 @@ expr
     | expr '&' expr                      # EtLogExpr
     | expr '^' expr                      # OuExcExpr
     | expr '|' expr                      # OuIncExpr
+    | function_call                      # FuncCallExpr 
     | ID                                 # IdExpr
     | CONST                              # ConstExpr
     ;
+function_call : ID '(' (expr (',' expr)*)? ')' ;
 
 RETURN : 'return' ;
 CONST : [0-9]+ ;
