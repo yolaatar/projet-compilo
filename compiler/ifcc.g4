@@ -15,14 +15,16 @@ assignment : ID '=' expr ';' ;
 return_stmt : RETURN expr ';' ;
 
 expr
-    : expr op=('*'|'/'|'%') expr  #MulDivExpr 
-    | expr op=('+'|'-') expr      # AddSubExpr
-    | '(' expr ')'                # ParExpr
-    | expr '&' expr                #EtLogExpr
-    | expr '^' expr                #OuExcExpr
-    | expr '|' expr                #OuIncExpr
-    | ID                          # IdExpr
-    | CONST                       # ConstExpr
+    : expr op=('*'|'/'|'%') expr         # MulDivExpr 
+    | expr op=('+'|'-') expr             # AddSubExpr
+    | '(' expr ')'                       # ParExpr
+    | expr op=('<'|'>'|'<='|'>=') expr   # CompExpr
+    | expr op=('=='|'!=') expr           # EgalExpr
+    | expr '&' expr                      # EtLogExpr
+    | expr '^' expr                      # OuExcExpr
+    | expr '|' expr                      # OuIncExpr
+    | ID                                 # IdExpr
+    | CONST                              # ConstExpr
     ;
 
 RETURN : 'return' ;
