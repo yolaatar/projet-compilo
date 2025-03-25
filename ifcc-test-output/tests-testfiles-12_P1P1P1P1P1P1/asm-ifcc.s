@@ -39,5 +39,7 @@
     movl %eax, -48(%rbp)
     movl $1, %eax
     addl -48(%rbp), %eax
+    jmp end
+end:
     popq %rbp
     ret

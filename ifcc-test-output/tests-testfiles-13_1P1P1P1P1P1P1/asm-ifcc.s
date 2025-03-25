@@ -48,5 +48,7 @@
     addl -12(%rbp), %eax
     addl -8(%rbp), %eax
     addl -4(%rbp), %eax
+    jmp end
+end:
     popq %rbp
     ret

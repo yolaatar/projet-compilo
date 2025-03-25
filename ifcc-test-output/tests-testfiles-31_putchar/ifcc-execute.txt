@@ -1,2 +1,2 @@
-b
-exit status: 98
+1
+exit status: 0

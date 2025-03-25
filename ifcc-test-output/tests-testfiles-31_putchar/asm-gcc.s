@@ -12,13 +12,12 @@ main:
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	subq	$16, %rsp
-	movl	$97, -8(%rbp)
-	movl	-8(%rbp), %eax
-	addl	$1, %eax
-	movl	%eax, %edi
-	call	putchar@PLT
+	call	getchar@PLT
 	movl	%eax, -4(%rbp)
 	movl	-4(%rbp), %eax
+	movl	%eax, %edi
+	call	putchar@PLT
+	movl	$0, %eax
 	leave
 	.cfi_def_cfa 7, 8
 	ret

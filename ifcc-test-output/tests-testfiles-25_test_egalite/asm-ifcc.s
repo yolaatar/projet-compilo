@@ -10,5 +10,7 @@
     cmpl -8(%rbp), %eax
     sete %al
     movzbl %al, %eax
+    jmp end
+end:
     popq %rbp
     ret

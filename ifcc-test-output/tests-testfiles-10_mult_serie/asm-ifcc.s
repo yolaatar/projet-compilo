@@ -26,5 +26,7 @@
     movl %eax, -36(%rbp)  
     movl -16(%rbp), %eax
     imull -36(%rbp), %eax
+    jmp end
+end:
     popq %rbp
     ret
