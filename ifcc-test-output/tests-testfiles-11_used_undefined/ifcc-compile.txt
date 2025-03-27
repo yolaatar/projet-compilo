@@ -1,3 +1,0 @@
-[ERROR] b is not defined
-
-exit status: 1

@@ -1,3 +1,0 @@
-[WARNING] z is defined but not used
-
-exit status: 0

@@ -1,4 +1,0 @@
-line 3:4 mismatched input 'return' expecting {',', ';'}
-error: syntax error during parsing
-
-exit status: 1
