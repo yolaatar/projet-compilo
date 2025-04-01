@@ -14,8 +14,19 @@ inst : declaration
      | function_call ';' ;
 
 declaration : 'int' decl (',' decl)* ';' ;
-decl : ID ('=' expr)? ;
-assignment : ID '=' expr ';' ;
+decl 
+    : ID ('[' CONST ']')? ( '=' ( array_init | expr ) )?
+    ;
+array_init
+    : '{' expr(',' expr)* '}'
+    ;
+
+assignment 
+    : (ID | array_access) '=' expr ';'
+    ;
+array_access
+    : ID '[' expr ']'
+    ;
 
 return_stmt : RETURN expr ';' ;
 
@@ -26,6 +37,7 @@ expr
     | '!' expr                           # NotExpr
     | expr op=('*'|'/'|'%') expr         # MulDivExpr 
     | expr op=('+'|'-') expr             # AddSubExpr
+    | expr '[' expr ']'                  # ArrayAccessExpr
     | '(' expr ')'                       # ParExpr
     | expr op=('<'|'>'|'<='|'>=') expr   # CompExpr
     | expr op=('=='|'!=') expr           # EgalExpr

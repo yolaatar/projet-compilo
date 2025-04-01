@@ -67,6 +67,10 @@ antlrcpp::Any CodeGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitArrayAccessExpr(ifccParser::ArrayAccessExprContext *ctx) {
+    
+}
+
 
 antlrcpp::Any CodeGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx) {
     // Parcours les sous-expressions gauche et droite

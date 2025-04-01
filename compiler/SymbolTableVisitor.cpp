@@ -59,13 +59,15 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
     return 0;
 }
 
-void SymbolTableVisitor::addToSymbolTable(std::string s){
+void SymbolTableVisitor::addToSymbolTable(std::string s, int arraySize = 1){
     if(symbolTable.find(s) != symbolTable.end()){
         writeWarning(s+" is already defined");
     } else {
         symbolTable[s] = SymbolTableStruct{};
+        symbolTable[s].isArray = (arraySize > 1);
+        symbolTable[s].size = arraySize;
         symbolTable[s].offset = -offset;
-        offset += INTSIZE;
+        offset += arraySize * INTSIZE;
     }
 }
 

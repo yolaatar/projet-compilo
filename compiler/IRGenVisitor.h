@@ -1,0 +1,24 @@
+#pragma once
+
+#include "generated/ifccBaseVisitor.h"  // Chemin vers vos fichiers générés par ANTLR
+#include "generated/ifccParser.h"
+#include "SymbolInfo.h"                // Contient la définition de SymbolInfo
+#include <unordered_map>
+#include <string>
+#include "IR.h"
+
+class IRGenVisitor : public ifccBaseVisitor {
+public:
+    // Table des symboles obtenue par le SymbolTableVisitor
+    std::unordered_map<std::string, SymbolInfo> symbolTable;
+    CFG* cfg;  // Pointeur vers le CFG en cours 
+    CodeGenBackend *backend; // Backend pour la génération de code
+
+    // Méthodes pour générer du code assembleur
+    virtual antlrcpp::Any visitProg(ifccParser::ProgContext* ctx) override;
+    virtual antlrcpp::Any visitDecl(ifccParser::DeclContext* ctx) override;
+    virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext* ctx) override;
+    virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext* ctx) override;
+
+
+};
