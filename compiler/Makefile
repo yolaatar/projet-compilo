@@ -13,20 +13,22 @@ all: ifcc
 
 ##########################################
 # link together all pieces of our compiler 
-OBJECTS=build/ifccBaseVisitor.o \
-	build/ifccLexer.o \
-	build/ifccVisitor.o \
-	build/ifccParser.o \
-	build/main.o \
-	build/SymbolTableVisitor.o \
-	build/CodeGenVisitor.o
+OBJECTS = build/ifccBaseVisitor.o \
+          build/ifccLexer.o \
+          build/ifccVisitor.o \
+          build/ifccParser.o \
+          build/main.o \
+          build/IRGenVisitor.o \
+          build/SymbolTableVisitor.o \
+          build/ARM64Backend.o  \
+		  build/BackendInitializr.o
 
 ifcc: $(OBJECTS)
 	@mkdir -p build
 	$(CC) $(LDFLAGS) build/*.o $(ANTLRLIB) -o ifcc
 
 ##########################################
-# compile our hand-writen C++ code: main(), CodeGenVisitor, etc.
+# compile our hand-writen C++ code: main(), IRGenVisitor, etc.
 build/%.o: %.cpp generated/ifccParser.cpp
 	@mkdir -p build
 	$(CC) $(CCFLAGS) -MMD -o $@ $< 
