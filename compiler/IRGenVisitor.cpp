@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <string>
+#include <any>
 
 using namespace std;
 
@@ -25,7 +26,7 @@ std::string IRGenVisitor::newTemp() {
 antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx)
 {
     // Évaluer l'expression à retourner et récupérer le temporary résultant
-    std::string temp = this->visit(ctx->expr()).as<std::string>();
+    std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
     
     // Créer une instruction IRReturn pour indiquer la valeur de retour
     auto instr = std::make_unique<IRInstr>(
@@ -94,8 +95,8 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext* ctx)
 {
-    std::string left = this->visit(ctx->expr(0)).as<std::string>();
-    std::string right = this->visit(ctx->expr(1)).as<std::string>();
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar(32);
     
     if (ctx->op->getText() == "*") {
@@ -146,7 +147,7 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext* ctx)
 // Exemple d'IR : result = !expr
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext* ctx) {
-    std::string exprTemp = this->visit(ctx->expr()).as<std::string>();
+    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     std::string result = cfg->create_new_tempvar(32);
     
     // Créez une instruction IRNot qui calcule le NOT logique
@@ -163,7 +164,7 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext* ctx) {
 antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext* ctx)
 {
     std::string varName = ctx->ID()->getText();
-    std::string exprTemp = this->visit(ctx->expr()).as<std::string>();
+    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     
     // Créez une instruction IRCopy pour effectuer l'affectation : varName <- exprTemp
     auto instr = std::make_unique<IRInstr>(
@@ -179,8 +180,8 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext* ctx)
 {
-    std::string left = this->visit(ctx->expr(0)).as<std::string>();
-    std::string right = this->visit(ctx->expr(1)).as<std::string>();
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar(32);
     
     if (ctx->op->getText() == "+") {
@@ -205,8 +206,8 @@ antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext* ctx)
 {
-    std::string left = this->visit(ctx->expr(0)).as<std::string>();
-    std::string right = this->visit(ctx->expr(1)).as<std::string>();
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar(32);
     
     if (ctx->op->getText() == "==") {
@@ -231,8 +232,8 @@ antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext* ctx)
 {
-    std::string left = this->visit(ctx->expr(0)).as<std::string>();
-    std::string right = this->visit(ctx->expr(1)).as<std::string>();
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar(32);
     
     auto instr = std::make_unique<IRInstr>(
@@ -247,8 +248,8 @@ antlrcpp::Any IRGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext* ctx)
 {
-    std::string left = this->visit(ctx->expr(0)).as<std::string>();
-    std::string right = this->visit(ctx->expr(1)).as<std::string>();
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar(32);
     
     auto instr = std::make_unique<IRInstr>(
@@ -265,7 +266,7 @@ antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext* ctx)
 {
     std::string varName = ctx->ID()->getText();
     if(ctx->expr() != nullptr){
-         std::string temp = this->visit(ctx->expr()).as<std::string>();
+         std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
          auto instr = std::make_unique<IRInstr>(
              std::make_unique<IRCopy>(varName, temp, 32)
          );
