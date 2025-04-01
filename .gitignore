@@ -1,4 +1,4 @@
-/tests/ifcc-test-output/
+/ifcc-test-output/
 /compiler/build
 /compiler/generated
 /compiler/*.mk
@@ -6,3 +6,4 @@
 *.sh
 /save/
 .vscode/
+/compiler/ifcc
