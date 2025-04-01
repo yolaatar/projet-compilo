@@ -13,6 +13,9 @@
 //-----------------------------------------------------
 // Définition de DefFonction
 //-----------------------------------------------------
+/// On déclare un pointeur global (ou mieux, un singleton ou une instance dans le CFG) pour le backend.
+extern const CodeGenBackend* codegenBackend;
+
 class DefFonction {
 public:
     std::string name;
@@ -99,14 +102,17 @@ public:
     // Exemples d'implémentation, à adapter :
     void gen_asm_prologue(std::ostream& o) {
         //o << ".section __TEXT,__text,regular,pure_instructions\n";
-        o << ".globl _" << ast->name << "\n";
-        o << "_" << ast->name << ":\n";
+        //o << ".globl _" << ast->name << "\n";
+        //o << "" << ast->name << ":\n";
         // Allouer la pile, etc.
-        o << "    sub sp, sp, #16\n";
+        //o << "    sub sp, sp, #16\n";
+        codegenBackend->gen_prologue(o, ast->name);
     }
+
     void gen_asm_epilogue(std::ostream& o) {
-        o << "    add sp, sp, #16\n";
-        o << "    ret\n";
+        //o << "    add sp, sp, #16\n";
+        //o << "    ret\n";
+        codegenBackend->gen_epilogue(o);
     }
 
     void add_to_symbol_table(std::string name, size_t t) {

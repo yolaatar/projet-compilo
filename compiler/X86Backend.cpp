@@ -20,7 +20,7 @@
 // Génération d'un déplacement (move)
 // Note : en x86, l'instruction s'écrit "movl <src>, <dest>"
 void X86Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
-    os << "    movl " << src << ", " << dest << "\n";
+    os << "    movl $" << src << ", %eax\n";
 }
 
 // Génération d'une addition : effectue dest = src1 + src2
@@ -126,13 +126,23 @@ void X86Backend::gen_call(std::ostream &os, const std::string &func) const {
 }
 
 void X86Backend::gen_return(std::ostream &os, const std::string &src) const {
-    os << "end:\n";
-    os << "    popq %rbp\n";
-    os << "    ret\n";
 }
 
 void X86Backend::gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     //os << "    call " << src << "\n";
+}
+
+void X86Backend::gen_prologue(std::ostream &os, std::string &name) const{
+    os<< ".globl "<< name<<"\n";
+    os<< name<< " :\n";
+    os<<"    pushq %rbp\n";
+    os<<"    movq %rsp, %rbp\n";
+}
+
+void X86Backend::gen_epilogue(std::ostream &os) const{
+    os<< "end:\n";
+    os<<"    popq %rbp\n";
+    os<<"    ret\n";
 }
 
 // // Génération d'un saut inconditionnel vers une étiquette

@@ -20,7 +20,6 @@ OBJECTS = build/ifccBaseVisitor.o \
           build/main.o \
           build/IRGenVisitor.o \
           build/SymbolTableVisitor.o \
-		  build/ARM64Backend.o  \
           build/X86Backend.o  \
 		  build/BackendInitializr.o
 
