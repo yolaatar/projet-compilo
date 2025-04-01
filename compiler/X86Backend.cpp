@@ -21,6 +21,7 @@
 // Note : en x86, l'instruction s'écrit "movl <src>, <dest>"
 void X86Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
     os << "    movl $" << src << ", %eax\n";
+    os << "    movl %eax, " << dest << "\n";
 }
 
 // Génération d'une addition : effectue dest = src1 + src2
