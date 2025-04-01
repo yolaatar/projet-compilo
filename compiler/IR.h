@@ -98,7 +98,7 @@ public:
 
     // Exemples d'implémentation, à adapter :
     void gen_asm_prologue(std::ostream& o) {
-        o << ".section __TEXT,__text,regular,pure_instructions\n";
+        //o << ".section __TEXT,__text,regular,pure_instructions\n";
         o << ".globl _" << ast->name << "\n";
         o << "_" << ast->name << ":\n";
         // Allouer la pile, etc.
