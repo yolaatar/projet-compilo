@@ -10,6 +10,7 @@
 
 #include "CodeGenVisitor.h"
 #include "SymbolTableVisitor.h"
+#include "IRGenVisitor.h"
 
 using namespace antlr4;
 using namespace std;
@@ -53,8 +54,13 @@ int main(int argn, const char **argv)
   stv.visit(tree);
 
   if (stv.error == 0){
-    CodeGenVisitor cgv(stv);
-    cgv.visit(tree); 
+    IRGenVisitor cgv(stv); 
+    DefFonction defFunc("main");
+    CFG cfg(&defFunc);
+    cgv.cfg = &cfg;
+    cgv.visit(tree);
+    cfg.gen_asm(std::cout);
+     
   }
 
   return 0;
