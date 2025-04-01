@@ -2,4 +2,7 @@
 /compiler/build
 /compiler/generated
 /compiler/*.mk
+/compiler/*.s
 *.sh
+/save/
+.vscode/

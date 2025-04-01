@@ -214,6 +214,21 @@ antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitFunction_call(ifccParser::Function_callContext *ctx){
+    std::string varName = ctx->ID()->getText();
+    if (varName == "putchar") {
+        // Évalue l'argument de putchar
+        visit(ctx->expr(0));
+        // Copie la valeur de %eax (résultat de l'expression) dans %edi (registre d'argument)
+        std::cout << "    movl %eax, %edi\n";
+        // Appelle la fonction putchar
+        std::cout << "    call putchar@PLT\n";
+    } else if (varName == "getchar"){
+        std::cout << "    call getchar@PLT" << std::endl;
+    }
+    return 0;
+}
+
 std::string CodeGenVisitor::newTemp() {
     while (stv.symbolTable.find("tmp"+std::to_string(tempCpt)) != stv.symbolTable.end())
     {
