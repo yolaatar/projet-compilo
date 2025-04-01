@@ -7,9 +7,10 @@ prog : type ID '(' decl_params ')' '{' inst* '}' ;
 decl_params : ( param (',' param)* )? ;
 param : 'int' ID ;
 
+
 inst : declaration 
      | assignment 
-     | return_stmt;
+     | return_stmt ;
 
 declaration : 'int' decl (',' decl)* ';' ;
 decl : ID ('=' expr)? ;

@@ -14,6 +14,8 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     visitChildren(ctx);
     
+    std::cout << "end:\n";
+    std::cout << "    popq %rbp\n";
     std::cout << "    ret\n";
 
     return 0;
@@ -24,7 +26,7 @@ antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *c
 {
     visitChildren(ctx);
 
-    std::cout << "    popq %rbp\n";
+    std::cout << "    jmp end\n";
 
     return 0;
 }

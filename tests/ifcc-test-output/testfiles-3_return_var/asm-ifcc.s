@@ -7,5 +7,7 @@
     movl -4(%rbp), %eax
     movl %eax, -8(%rbp)
     movl -4(%rbp), %eax
+    jmp end
+end:
     popq %rbp
     ret
