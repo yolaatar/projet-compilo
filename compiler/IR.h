@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include "IROperation.h"
+#include "SymbolTableVisitor.h"
 
 //-----------------------------------------------------
 // Définition de DefFonction
@@ -47,6 +48,7 @@ public:
     void gen_asm(std::ostream &o) {
         op->gen_asm(o);
     }
+
 private:
     std::unique_ptr<IROperation> op;
 };
@@ -82,8 +84,8 @@ public:
  *---------------------------------------------------*/
 class CFG {
 public:
-    CFG(DefFonction* ast)
-        : ast(ast), nextFreeSymbolIndex(0), nextBBnumber(0), current_bb(nullptr) {}
+    CFG(DefFonction* ast, SymbolTableVisitor stv)
+        : ast(ast), stv(stv), nextBBnumber(0), current_bb(nullptr) {}
 
     DefFonction* ast;
     void add_bb(BasicBlock* bb) {
@@ -115,21 +117,27 @@ public:
         codegenBackend->gen_epilogue(o);
     }
 
-    void add_to_symbol_table(std::string name, size_t t) {
-        symbolSizes[name] = t;
-        symbolIndex[name] = nextFreeSymbolIndex++;
+    // void add_to_symbol_table(std::string name, size_t t) {
+    //     symbolSizes[name] = t;
+    //     symbolIndex[name] = nextFreeSymbolIndex++;
+    // }
+
+    // std::string createNewTemp(size_t t) {
+    //     std::string prefix = codegenBackend->getTempPrefix();
+    //     std::string temp = prefix + std::to_string(nextFreeSymbolIndex);
+    //     stv.addToSymbolTable(temp);
+    //     return temp;
+    // }
+    
+    int getOffset(std::string varName) {
+        if(stv.symbolTable.find(varName) != stv.symbolTable.end()){
+            return stv.symbolTable.find(varName)->second.offset;
+        }
+        return 0;
     }
-    std::string create_new_tempvar(size_t t) {
-        std::string temp = "w" + std::to_string(nextFreeSymbolIndex);
-        add_to_symbol_table(temp, t);
-        return temp;
-    }
-    int get_var_index(std::string name) {
-        return symbolIndex[name];
-    }
-    size_t get_var_type(std::string name) {
-        return symbolSizes[name];
-    }
+    // size_t get_var_type(std::string name) {
+    //     return symbolSizes[name];
+    // }
 
     std::string new_BB_name() {
         return "BB" + std::to_string(nextBBnumber++);
@@ -138,9 +146,11 @@ public:
     BasicBlock* current_bb;
 
 private:
-    std::map<std::string, size_t> symbolSizes;
-    std::map<std::string, int> symbolIndex;
-    int nextFreeSymbolIndex;
+    // std::map<std::string, size_t> symbolSizes;
+    // std::map<std::string, int> symbolIndex;
+    SymbolTableVisitor stv;
+
+    // int nextFreeSymbolIndex;
     int nextBBnumber;
     std::vector<BasicBlock*> bbs;
 };

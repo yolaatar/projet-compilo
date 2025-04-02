@@ -21,7 +21,7 @@
 // Note : en x86, l'instruction s'écrit "movl <src>, <dest>"
 void X86Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
     os << "    movl $" << src << ", %eax\n";
-    os << "    movl %eax, " << dest << "\n";
+    os << "    movl %eax, " << dest << "(%rbp)\n";
 }
 
 // Génération d'une addition : effectue dest = src1 + src2
@@ -155,3 +155,13 @@ void X86Backend::gen_epilogue(std::ostream &os) const{
 // void X86Backend::gen_label(std::ostream &os, const std::string &label) const {
 //     os << label << ":\n";
 // }
+
+void X86Backend::gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const {
+    // Ici, 'dest' doit représenter l'adresse mémoire de la variable (par exemple, "[sp, #offset]")
+    // et 'src' le registre contenant la valeur à copier (par exemple, "w0").
+    os << "    movl " << src << "(%rbp), " << dest << "(%rbp)\n";
+}
+
+std::string X86Backend::getTempPrefix() const {
+    return "!tmp";
+}

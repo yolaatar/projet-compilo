@@ -27,7 +27,8 @@ public:
     virtual void gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const = 0;
     virtual void gen_prologue(std::ostream &os, std::string &name) const = 0;
     virtual void gen_epilogue(std::ostream &os) const = 0;
-
+    virtual void gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const = 0;
+    virtual std::string getTempPrefix() const = 0;
 };
 
 #endif

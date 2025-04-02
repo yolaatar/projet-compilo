@@ -8,18 +8,24 @@
 
 #include "CodeGenBackend.h"
 
+class BasicBlock;
+
 /**
  * Classe de base pour une opération IR.
  */
 class IROperation {
 public:
-    IROperation(const std::vector<std::string>& params, size_t size)
-        : params(params), size(size) {}
+    // NB : IROperation n'apporte aucune abstraction logique de plus que IRInstr (on devrait l'enlever mais tant pis)
+    IROperation(BasicBlock *bb, const std::vector<std::string>& params, size_t size)
+        : bb(bb), params(params), size(size) {}
     virtual ~IROperation() {}
     virtual void gen_asm(std::ostream &os) const = 0;
 protected:
+    BasicBlock *bb;
     std::vector<std::string> params;
     size_t size;
+
+    std::string getOffset(const std::string &varName) const;
 };
 
 /// On déclare un pointeur global (ou mieux, un singleton ou une instance dans le CFG) pour le backend.
@@ -31,10 +37,10 @@ extern const CodeGenBackend* codegenBackend;
  */
 class IRAdd : public IROperation {
 public:
-    IRAdd(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRAdd(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
-        codegenBackend->gen_add(os, params[0], params[1], params[2]);
+        codegenBackend->gen_add(os, getOffset(params[0]), getOffset(params[1]), getOffset(params[2]));
     }
 };
 
@@ -44,10 +50,10 @@ public:
  */
 class IRLdConst : public IROperation {
 public:
-    IRLdConst(const std::string &dest, const std::string &constant, size_t size)
-        : IROperation({dest, constant}, size) {}
+    IRLdConst(BasicBlock *bb, const std::string &dest, const std::string &constant, size_t size)
+        : IROperation(bb, {dest, constant}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
-        codegenBackend->gen_mov(os, params[0], params[1]);
+        codegenBackend->gen_mov(os, getOffset(params[0]), params[1]);
     }
 };
 
@@ -57,10 +63,10 @@ public:
  */
 class IRCopy : public IROperation {
 public:
-    IRCopy(const std::string &dest, const std::string &src, size_t size)
-        : IROperation({dest, src}, size) {}
+    IRCopy(BasicBlock *bb, const std::string &dest, const std::string &src, size_t size)
+        : IROperation(bb, {dest, src}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
-         os << "    mov " << params[0] << ", " << params[1] << "\n";
+        codegenBackend->gen_copy(os, getOffset(params[0]), getOffset(params[1]));
     }
 };
 
@@ -70,8 +76,8 @@ public:
  */
 class IRSub : public IROperation {
 public:
-    IRSub(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRSub(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_sub(os, params[0], params[1], params[2]);
     }
@@ -83,8 +89,8 @@ public:
  */
 class IRMul : public IROperation {
 public:
-    IRMul(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRMul(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_mul(os, params[0], params[1], params[2]);
     }
@@ -96,8 +102,8 @@ public:
  */
 class IRDiv : public IROperation {
 public:
-    IRDiv(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRDiv(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_div(os, params[0], params[1], params[2]);
     }
@@ -108,8 +114,8 @@ public:
  */
 class IRMod : public IROperation {
 public:
-    IRMod(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRMod(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_mod(os, params[0], params[1], params[2]);
     }
@@ -121,8 +127,8 @@ public:
  */
 class IRReturn : public IROperation {
 public:
-    IRReturn(const std::string &src, size_t size)
-        : IROperation({src}, size) {}
+    IRReturn(BasicBlock *bb, const std::string &src, size_t size)
+        : IROperation(bb, {src}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_return(os, params[0]);
     }
@@ -133,8 +139,8 @@ public:
  */
 class IRCall : public IROperation {
 public:
-    IRCall(const std::string &func, size_t size)
-        : IROperation({func}, size) {}
+    IRCall(BasicBlock *bb, const std::string &func, size_t size)
+        : IROperation(bb, {func}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_call(os, params[0]);
     }
@@ -145,8 +151,8 @@ public:
  */
 class IRNot : public IROperation {
 public:
-    IRNot(const std::string &dest, const std::string &src, size_t size)
-        : IROperation({dest, src}, size) {}
+    IRNot(BasicBlock *bb, const std::string &dest, const std::string &src, size_t size)
+        : IROperation(bb, {dest, src}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_not(os, params[0], params[1]);
     }
@@ -157,8 +163,8 @@ public:
  */
 class IRXor : public IROperation {
 public:
-    IRXor(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRXor(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_xor(os, params[0], params[1], params[2]);
     }
@@ -169,8 +175,8 @@ public:
  */
 class IROr : public IROperation {
 public:
-    IROr(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IROr(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_or(os, params[0], params[1], params[2]);
     }
@@ -181,8 +187,8 @@ public:
  */
 class IREgal : public IROperation {
 public:
-    IREgal(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IREgal(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_egal(os, params[0], params[1], params[2]);
     }
@@ -193,8 +199,8 @@ public:
  */
 class IRNotEgal : public IROperation {
 public:
-    IRNotEgal(const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
-        : IROperation({dest, src1, src2}, size) {}
+    IRNotEgal(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, size_t size)
+        : IROperation(bb, {dest, src1, src2}, size) {}
     virtual void gen_asm(std::ostream &os) const override {
         codegenBackend->gen_notegal(os, params[0], params[1], params[2]);
     }

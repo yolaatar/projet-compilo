@@ -1,4 +1,5 @@
 #include "SymbolTableVisitor.h"
+#include "IROperation.h"
 
 antlrcpp::Any SymbolTableVisitor::visitDecl(ifccParser::DeclContext *ctx)
 {
@@ -67,6 +68,13 @@ void SymbolTableVisitor::addToSymbolTable(std::string s){
         symbolTable[s].offset = -offset;
         offset += INTSIZE;
     }
+}
+
+std::string SymbolTableVisitor::createNewTemp() {
+    std::string prefix = codegenBackend->getTempPrefix();
+    std::string temp = prefix + std::to_string(offset);
+    addToSymbolTable(temp);
+    return temp;
 }
 
 void SymbolTableVisitor::checkSymbolTable(){

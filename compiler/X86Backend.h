@@ -28,6 +28,9 @@ public:
     virtual void gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
     virtual void gen_prologue(std::ostream &os, std::string &name) const override;
     virtual void gen_epilogue(std::ostream &os) const override;
+    virtual void gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const override;
+
+    virtual std::string getTempPrefix() const override;
 };
 
 #endif // X86BACKEND_H

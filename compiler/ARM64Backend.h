@@ -11,6 +11,8 @@ public:
     virtual ~ARM64Backend() {}
 
     virtual void gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const override;
+    // virtual std::string mapVar(const std::string &varName) const override;
+    virtual int getVarOffset(const std::string &varName) const ;
     virtual void gen_add(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
     virtual void gen_sub(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
     virtual void gen_mul(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
@@ -23,6 +25,7 @@ public:
     virtual void gen_not(std::ostream &os, const std::string &dest, const std::string &src) const override;
     virtual void gen_egal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
     virtual void gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
+    virtual void gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const override ;
 };
 
 #endif

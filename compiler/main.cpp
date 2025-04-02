@@ -56,7 +56,7 @@ int main(int argn, const char **argv)
   if (stv.error == 0){
     IRGenVisitor cgv(stv); 
     DefFonction defFunc("main");
-    CFG cfg(&defFunc);
+    CFG cfg(&defFunc, stv);
     cgv.cfg = &cfg;
     cgv.visit(tree);
     cfg.gen_asm(std::cout);

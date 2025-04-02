@@ -6,6 +6,22 @@ void ARM64Backend::gen_mov(std::ostream &os, const std::string &dest, const std:
     os << "    mov " << dest << ", #" << src << "\n";
 }
 
+// int ARM64Backend::getVarOffset(const std::string &varName) const {
+//     // On suppose que le backend a accès à une table des symboles ou qu'on lui transmet l'offset associé.
+//     // Par exemple, on pourrait avoir un map<string,int> symbolOffsets.
+//     auto it = symbolOffsets.find(varName);
+//     if(it != symbolOffsets.end()){
+//         return it->second;
+//     }
+//     // Gérer le cas d'une variable non trouvée (ici, par défaut, 0)
+//     return 0;
+// }
+
+// std::string ARM64Backend::mapVar(const std::string &varName) const {
+//     int offset = getVarOffset(varName);
+//     return "[sp, #" + std::to_string(offset) + "]";
+// }
+
 // Génère une instruction d'addition : add dest, src1, src2
 void ARM64Backend::gen_add(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    add " << dest << ", " << src1 << ", " << src2 << "\n";
@@ -34,11 +50,11 @@ void ARM64Backend::gen_mod(std::ostream &os, const std::string &dest, const std:
     os << "    sub " << dest << ", " << src1 << ", x9\n";
 }
 
-// Génère le code de retour : déplace la valeur dans x0 et effectue ret
 void ARM64Backend::gen_return(std::ostream &os, const std::string &src) const {
-    os << "    mov x0, " << src << "\n";
-    os << "    ret\n";
+    // Utilise sxtw pour étendre le registre 32 bits (src) en 64 bits dans x0.
+    os << "    sxtw x0, " << src << "\n";
 }
+
 
 // Génère un appel de fonction avec branch with link
 void ARM64Backend::gen_call(std::ostream &os, const std::string &func) const {
@@ -71,4 +87,10 @@ void ARM64Backend::gen_egal(std::ostream &os, const std::string &dest, const std
 void ARM64Backend::gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    cmp " << src1 << ", " << src2 << "\n";
     os << "    cset " << dest << ", ne\n";
+}
+
+void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const {
+    // Ici, 'dest' doit représenter l'adresse mémoire de la variable (par exemple, "[sp, #offset]")
+    // et 'src' le registre contenant la valeur à copier (par exemple, "w0").
+    os << "    str " << src << ", " << dest << "\n";
 }
