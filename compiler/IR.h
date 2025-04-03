@@ -8,50 +8,30 @@
 #include <ostream>
 #include <map>
 #include <memory>
-#include "IROperation.h"
 #include "SymbolTableVisitor.h"
+#include "CodeGenBackend.h"
+#include "IRInstr.h"
+
+/// On déclare un pointeur global (ou mieux, un singleton ou une instance dans le CFG) pour le backend.
+extern const CodeGenBackend* codegenBackend;
+
+class BasicBlock;
+class CFG; 
 
 //-----------------------------------------------------
 // Définition de DefFonction
 //-----------------------------------------------------
-/// On déclare un pointeur global (ou mieux, un singleton ou une instance dans le CFG) pour le backend.
-extern const CodeGenBackend* codegenBackend;
-
 class DefFonction {
 public:
-    std::string name;
-    std::vector<std::string> params;
     DefFonction(const std::string &name, const std::vector<std::string> &params = {})
         : name(name), params(params) {}
-    void print(std::ostream &os) const {
-        os << "Function: " << name << "(";
-        for (size_t i = 0; i < params.size(); i++) {
-            os << params[i];
-            if (i < params.size() - 1)
-                os << ", ";
-        }
-        os << ")";
-    }
+
+    std::string name;
+    std::vector<std::string> params;
+
+    void print(std::ostream &os) const;
 };
 
-class BasicBlock;
-class CFG;
-
-/*---------------------------------------------------
- * IRInstr : Instruction IR contenant une opération
- *---------------------------------------------------*/
-class IRInstr {
-public:
-    IRInstr(std::unique_ptr<IROperation> op_)
-        : op(std::move(op_)) {}
-
-    void gen_asm(std::ostream &o) {
-        op->gen_asm(o);
-    }
-
-private:
-    std::unique_ptr<IROperation> op;
-};
 
 /*---------------------------------------------------
  * BasicBlock : Bloc basique d'instructions IR
@@ -60,23 +40,16 @@ class BasicBlock {
 public:
     BasicBlock(CFG* cfg, std::string entry_label)
         : cfg(cfg), label(entry_label), exit_true(nullptr), exit_false(nullptr) {}
-
-    void gen_asm(std::ostream &o) {
-        o << label << ":\n";
-        for (auto &instr : instrs) {
-            instr->gen_asm(o);
-        }
-    }
-
-    void add_IRInstr(std::unique_ptr<IRInstr> instr) {
-        instrs.push_back(std::move(instr));
-    }
+    void gen_asm(std::ostream &o);
+    void add_IRInstr(std::unique_ptr<IRInstr> instr);
 
     BasicBlock* exit_true;
     BasicBlock* exit_false;
     std::string label;
     CFG* cfg;
     std::vector<std::unique_ptr<IRInstr>> instrs;
+    // TODO : Pour les if/then/else
+    // string test_var_name;  /** < when generating IR code for an if(expr) or while(expr) etc,
 };
 
 /*---------------------------------------------------
@@ -84,73 +57,21 @@ public:
  *---------------------------------------------------*/
 class CFG {
 public:
-    CFG(DefFonction* ast, SymbolTableVisitor stv)
-        : ast(ast), stv(stv), nextBBnumber(0), current_bb(nullptr) {}
+    CFG(DefFonction* ast, SymbolTableVisitor& stv);
 
     DefFonction* ast;
-    void add_bb(BasicBlock* bb) {
-        bbs.push_back(bb);
-        current_bb = bb;
-    }
-
-    void gen_asm(std::ostream& o) {
-        gen_asm_prologue(o);
-        for (auto bb : bbs) {
-            bb->gen_asm(o);
-        }
-        gen_asm_epilogue(o);
-    }
-
-    // Exemples d'implémentation, à adapter :
-    void gen_asm_prologue(std::ostream& o) {
-        //o << ".section __TEXT,__text,regular,pure_instructions\n";
-        //o << ".globl _" << ast->name << "\n";
-        //o << "" << ast->name << ":\n";
-        // Allouer la pile, etc.
-        //o << "    sub sp, sp, #16\n";
-        codegenBackend->gen_prologue(o, ast->name);
-    }
-
-    void gen_asm_epilogue(std::ostream& o) {
-        //o << "    add sp, sp, #16\n";
-        //o << "    ret\n";
-        codegenBackend->gen_epilogue(o);
-    }
-
-    // void add_to_symbol_table(std::string name, size_t t) {
-    //     symbolSizes[name] = t;
-    //     symbolIndex[name] = nextFreeSymbolIndex++;
-    // }
-
-    // std::string createNewTemp(size_t t) {
-    //     std::string prefix = codegenBackend->getTempPrefix();
-    //     std::string temp = prefix + std::to_string(nextFreeSymbolIndex);
-    //     stv.addToSymbolTable(temp);
-    //     return temp;
-    // }
-    
-    int getOffset(std::string varName) {
-        if(stv.symbolTable.find(varName) != stv.symbolTable.end()){
-            return stv.symbolTable.find(varName)->second.offset;
-        }
-        return 0;
-    }
-    // size_t get_var_type(std::string name) {
-    //     return symbolSizes[name];
-    // }
-
-    std::string new_BB_name() {
-        return "BB" + std::to_string(nextBBnumber++);
-    }
-
     BasicBlock* current_bb;
 
-private:
-    // std::map<std::string, size_t> symbolSizes;
-    // std::map<std::string, int> symbolIndex;
-    SymbolTableVisitor stv;
+    void add_bb(BasicBlock* bb);
+    std::string IR_reg_to_asm(std::string reg);
+    void gen_asm(std::ostream& o);
+    void gen_asm_prologue(std::ostream& o);
+    void gen_asm_epilogue(std::ostream& o);
+    std::string create_new_tempvar();
+    std::string new_BB_name();    
 
-    // int nextFreeSymbolIndex;
+private:
+    SymbolTableVisitor stv;
     int nextBBnumber;
     std::vector<BasicBlock*> bbs;
 };

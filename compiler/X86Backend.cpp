@@ -2,26 +2,14 @@
 #include "X86Backend.h"
 #include <iostream>
 
-// Génération du prologue de la fonction main
-// void X86Backend::gen_prologue(std::ostream &os) const {
-//     os << ".globl main\n";
-//     os << "main:\n";
-//     os << "    pushq %rbp\n";
-//     os << "    movq %rsp, %rbp\n";
-// }
-
-// Génération de l'épilogue de la fonction main
-// void X86Backend::gen_epilogue(std::ostream &os) const {
-//     os << "end:\n";
-//     os << "    popq %rbp\n";
-//     os << "    ret\n";
-// }
+void X86Backend::gen_return(std::ostream &os, const std::string &src) const {
+    os << "    movl " << src << ", %eax\n";
+}
 
 // Génération d'un déplacement (move)
 // Note : en x86, l'instruction s'écrit "movl <src>, <dest>"
 void X86Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
-    os << "    movl $" << src << ", %eax\n";
-    os << "    movl %eax, " << dest << "(%rbp)\n";
+    os << "    movl $" << src << ", " << dest << "\n";
 }
 
 // Génération d'une addition : effectue dest = src1 + src2
@@ -76,7 +64,7 @@ void X86Backend::gen_egal(std::ostream &os, const std::string &dest, const std::
     os << "    cmpl " << src2 << ", " << src1 << "\n";
 }
 
-// Génération des instructions de condition pour les comparaisons
+// // Génération des instructions de condition pour les comparaisons
 // void X86Backend::gen_sete(std::ostream &os, const std::string &reg8) const {
 //     os << "    sete " << reg8 << "\n";
 // }
@@ -106,7 +94,7 @@ void X86Backend::gen_egal(std::ostream &os, const std::string &dest, const std::
 //     os << "    movzbl " << src << ", " << dest << "\n";
 // }
 
-// Génération d'un AND logique
+// // Génération d'un AND logique
 // void X86Backend::gen_andl(std::ostream &os, const std::string &dest, const std::string &src) const {
 //     os << "    andl " << src << ", " << dest << "\n";
 // }
@@ -126,8 +114,6 @@ void X86Backend::gen_call(std::ostream &os, const std::string &func) const {
     os << "    call " << func << "\n";
 }
 
-void X86Backend::gen_return(std::ostream &os, const std::string &src) const {
-}
 
 void X86Backend::gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     //os << "    call " << src << "\n";
@@ -146,7 +132,7 @@ void X86Backend::gen_epilogue(std::ostream &os) const{
     os<<"    ret\n";
 }
 
-// // Génération d'un saut inconditionnel vers une étiquette
+// Génération d'un saut inconditionnel vers une étiquette
 // void X86Backend::gen_jmp(std::ostream &os, const std::string &label) const {
 //     os << "    jmp " << label << "\n";
 // }
@@ -159,7 +145,8 @@ void X86Backend::gen_epilogue(std::ostream &os) const{
 void X86Backend::gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const {
     // Ici, 'dest' doit représenter l'adresse mémoire de la variable (par exemple, "[sp, #offset]")
     // et 'src' le registre contenant la valeur à copier (par exemple, "w0").
-    os << "    movl " << src << "(%rbp), " << dest << "(%rbp)\n";
+    os << "    movl " << src << ", %eax\n";
+    os << "    movl %eax, " << dest << "\n";
 }
 
 std::string X86Backend::getTempPrefix() const {

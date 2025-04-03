@@ -4,15 +4,14 @@
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
 
+struct SymbolTableStruct {
+    bool initialised = false;
+    int offset;
+    bool used = false;
+};
 
 class  SymbolTableVisitor : public ifccBaseVisitor {
 	public:
-        struct SymbolTableStruct {
-            bool initialised = false;
-            int offset;
-            bool used = false;
-        };
-
         static const int INTSIZE = 4;      
         std::map<std::string, SymbolTableStruct> symbolTable;
         int offset = INTSIZE;
@@ -27,4 +26,5 @@ class  SymbolTableVisitor : public ifccBaseVisitor {
         void checkSymbolTable();
         void writeWarning(std::string message);
         void writeError(std::string message);
+        void print_symbol_table(std::ostream& os = std::cerr) const;
 };

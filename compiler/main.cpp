@@ -54,13 +54,12 @@ int main(int argn, const char **argv)
   stv.visit(tree);
 
   if (stv.error == 0){
-    IRGenVisitor cgv(stv); 
+    IRGenVisitor cgv; 
     DefFonction defFunc("main");
     CFG cfg(&defFunc, stv);
     cgv.cfg = &cfg;
     cgv.visit(tree);
     cfg.gen_asm(std::cout);
-     
   }
 
   return 0;

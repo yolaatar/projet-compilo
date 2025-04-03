@@ -9,9 +9,6 @@
 
 class  IRGenVisitor : public ifccBaseVisitor {
 	public:
-        IRGenVisitor(SymbolTableVisitor stv);
-
-        SymbolTableVisitor stv;
         CFG* cfg;  // Pointeur vers le CFG en cours 
         CodeGenBackend *backend; // Backend pour la génération de code
 

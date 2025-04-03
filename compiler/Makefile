@@ -18,8 +18,9 @@ OBJECTS = build/ifccBaseVisitor.o \
           build/ifccVisitor.o \
           build/ifccParser.o \
           build/main.o \
+		  build/IR.o \
           build/IRGenVisitor.o \
-		  build/IROperation.o \
+		  build/IRInstr.o \
           build/SymbolTableVisitor.o \
           build/X86Backend.o  \
 		  build/BackendInitializr.o

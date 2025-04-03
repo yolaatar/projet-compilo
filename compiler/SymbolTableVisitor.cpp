@@ -1,5 +1,5 @@
 #include "SymbolTableVisitor.h"
-#include "IROperation.h"
+#include "IR.h"
 
 antlrcpp::Any SymbolTableVisitor::visitDecl(ifccParser::DeclContext *ctx)
 {
@@ -94,4 +94,12 @@ void SymbolTableVisitor::writeWarning(std::string message){
 void SymbolTableVisitor::writeError(std::string message){
     error++;
     std::cerr << "[ERROR] " << message << "\n";
+}
+
+void SymbolTableVisitor::print_symbol_table(std::ostream& os) const {
+    os << "==== Symbol Table ====\n";
+    for (const auto& [name, info] : symbolTable) {
+        os << "  " << name << " -> offset: " << info.offset << "\n";
+    }
+    os << "======================\n";
 }
