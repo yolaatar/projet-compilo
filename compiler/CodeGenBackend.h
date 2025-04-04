@@ -12,7 +12,7 @@ class CodeGenBackend {
 public:
     virtual ~CodeGenBackend() {}
 
-    virtual void gen_prologue(std::ostream &os, std::string &name) const = 0;
+    virtual void gen_prologue(std::ostream &os, std::string &name, int stackSize) const = 0;
     virtual void gen_epilogue(std::ostream &os) const = 0;
     virtual void gen_return(std::ostream &os, const std::string &src) const = 0;
     virtual void gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const = 0;

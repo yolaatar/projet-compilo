@@ -124,8 +124,19 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext* ctx)
         this->visit(instCtx);
     }
 
+    // Compute maxOffset for stack alignment (ARM64)
+    int minOffset = 0;
+    for (const auto& [_, info] : cfg->get_stv().symbolTable) {
+        if (info.offset < minOffset) {
+            minOffset = info.offset;
+        }
+    }
+    cfg->maxOffset = -minOffset;
+
     return 0;
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "!"
@@ -147,10 +158,15 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext* ctx)
     std::string varName = ctx->ID()->getText();
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
-    cfg->current_bb->add_IRInstr(std::move(instr));
+
+    if (varName != exprTemp) { // ✅ éviter les copies inutiles
+        auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
+        cfg->current_bb->add_IRInstr(std::move(instr));
+    }
+
     return varName;
 }
+
 
 antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx) {
     return this->visit(ctx->expr());

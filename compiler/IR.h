@@ -69,6 +69,7 @@ public:
     void gen_asm(std::ostream& o);
     void gen_asm_prologue(std::ostream& o);
     void gen_asm_epilogue(std::ostream& o);
+    SymbolTableVisitor& get_stv() ;
     std::string create_new_tempvar();
     std::string new_BB_name();    
 

@@ -3,18 +3,7 @@
 #include <cctype>
 
 void ARM64Backend::gen_return(std::ostream &os, const std::string &src) const {
-    if (isdigit(src[0]) || (src[0] == '-' && isdigit(src[1]))) {
-        os << "    mov w0, #" << src << "\n";  // Immediate value
-    } else {
-        // Handle x86-style "-4(%rbp)" or plain "-4"
-        std::string adjusted_src = src;
-        if (src.find("(%rbp)") != std::string::npos) {
-            adjusted_src = "[x29, #" + src.substr(0, src.find("(%rbp)")) + "]";
-        } else if (src.find('[') == std::string::npos) {
-            adjusted_src = "[x29, #" + src + "]";
-        }
-        os << "    ldr w0, " << adjusted_src << "\n";  // Load from memory
-    }
+    os << "    ldr w0, " << src << "\n";
 }
 
 void ARM64Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
@@ -131,26 +120,27 @@ void ARM64Backend::gen_call(std::ostream &os, const std::string &func) const {
     os << "    bl " << func << "\n";          // Branch with link (call) to function
 }
 
-void ARM64Backend::gen_prologue(std::ostream &os, std::string &name) const {
+void ARM64Backend::gen_prologue(std::ostream &os, std::string &name, int stackSize) const {
     os << ".globl _" << name << "\n";
     os << "_" << name << ":\n";
+
+    // Standard prologue
     os << "    stp x29, x30, [sp, #-16]!\n";
     os << "    mov x29, sp\n";
 
-    int totalOffset = std::abs(CFG::maxOffset); // or pass it as a parameter
-    // Round up to nearest multiple of 16 for alignment
-    totalOffset = (totalOffset + 15) / 16 * 16;
-
-    os << "    sub sp, sp, #" << totalOffset << "\n";
+    // Allocate space for local variables (aligned)
+    int aligned = ((stackSize + 15) / 16) * 16;
+    if (aligned > 0) {
+        os << "    sub sp, sp, #" << aligned << "\n";
+    }
 }
-
-
-
 
 void ARM64Backend::gen_epilogue(std::ostream &os) const {
-    os << "    ldp x29, x30, [sp], #16\n";   // Restore frame pointer and link register
-    os << "    ret\n";                       // Return
+    os << "    mov sp, x29\n";  // Restore sp before popping
+    os << "    ldp x29, x30, [sp], #16\n";
+    os << "    ret\n";
 }
+
 
 void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest,
                             const std::string &src) const {
