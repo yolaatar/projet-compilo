@@ -132,17 +132,24 @@ void ARM64Backend::gen_call(std::ostream &os, const std::string &func) const {
 }
 
 void ARM64Backend::gen_prologue(std::ostream &os, std::string &name) const {
-    os << ".globl _" << name << "\n";
-    os << "_" << name << ":\n";
+    size_t sep = name.find('#');
+    std::string funcName = name;
+    int totalOffset = 0;
+
+    if (sep != std::string::npos) {
+        funcName = name.substr(0, sep);
+        totalOffset = std::stoi(name.substr(sep + 1));
+    }
+
+    os << ".globl _" << funcName << "\n";
+    os << "_" << funcName << ":\n";
     os << "    stp x29, x30, [sp, #-16]!\n";
     os << "    mov x29, sp\n";
 
-    int totalOffset = std::abs(CFG::maxOffset); // or pass it as a parameter
-    // Round up to nearest multiple of 16 for alignment
     totalOffset = (totalOffset + 15) / 16 * 16;
-
     os << "    sub sp, sp, #" << totalOffset << "\n";
 }
+
 
 
 

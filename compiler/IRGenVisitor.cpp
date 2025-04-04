@@ -124,8 +124,19 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext* ctx)
         this->visit(instCtx);
     }
 
+    // Compute maxOffset for stack alignment (ARM64)
+    int minOffset = 0;
+    for (const auto& [_, info] : cfg->get_stv().symbolTable) {
+        if (info.offset < minOffset) {
+            minOffset = info.offset;
+        }
+    }
+    cfg->maxOffset = -minOffset;
+
     return 0;
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "!"
