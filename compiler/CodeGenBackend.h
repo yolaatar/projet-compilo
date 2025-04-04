@@ -28,7 +28,8 @@ public:
     virtual void gen_not(std::ostream &os, const std::string &dest, const std::string &src) const = 0;
     virtual void gen_egal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const = 0;
     virtual void gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const = 0;
-
+    virtual void gen_and(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const = 0;
+    
     virtual std::string getTempPrefix() const = 0;
 };
 

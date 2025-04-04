@@ -29,6 +29,20 @@ void BasicBlock::add_IRInstr(std::unique_ptr<IRInstr> instr) {
     instrs.push_back(std::move(instr));
 }
 
+void BasicBlock::print_instrs() const {
+    std::cerr << "=== Instructions in BasicBlock [" << label << "] ===\n";
+    for (const auto &instr : instrs) {
+        std::cerr << "  - " << typeid(*instr).name() << "(";
+        std::vector<std::string> params = instr->getParams();
+        for (size_t i = 0; i < params.size(); ++i) {
+            std::cerr << params[i];
+            if (i + 1 < params.size())
+                std::cerr << ", ";
+        }
+        std::cerr << ")\n";
+    }
+    std::cerr << "========================================\n";
+}
 
 /**
  * CFG

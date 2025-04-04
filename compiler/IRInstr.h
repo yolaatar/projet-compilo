@@ -16,6 +16,7 @@ class IRInstr {
         virtual ~IRInstr() = default;
 
         virtual void gen_asm(std::ostream &o) = 0;
+        std::vector<std::string> getParams();
 
     protected:
         BasicBlock *bb;
@@ -119,6 +120,14 @@ class IRNotEgal : public IRInstr {
         : IRInstr(bb, {dest, src1, src2}) {}
         void gen_asm(std::ostream &o) override;
 };
+
+class IRAnd : public IRInstr {
+    public:
+        IRAnd(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+            : IRInstr(bb, {dest, src1, src2}) {}
+    
+        void gen_asm(std::ostream &o) override;
+    };    
 
 
 #endif

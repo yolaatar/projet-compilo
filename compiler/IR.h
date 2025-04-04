@@ -42,6 +42,7 @@ public:
         : cfg(cfg), label(entry_label), exit_true(nullptr), exit_false(nullptr) {}
     void gen_asm(std::ostream &o);
     void add_IRInstr(std::unique_ptr<IRInstr> instr);
+    void print_instrs() const;
 
     BasicBlock* exit_true;
     BasicBlock* exit_false;

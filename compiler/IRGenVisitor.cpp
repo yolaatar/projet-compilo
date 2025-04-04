@@ -12,14 +12,10 @@ using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx)
 {
-    // Évaluer l'expression à retourner et récupérer le temporary résultant
     std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
-    
-    // Créer une instruction IRReturn pour indiquer la valeur de retour
     auto instr = std::make_unique<IRReturn>(bb, temp);
     bb->add_IRInstr(std::move(instr));
-    
     return temp;
 }
 
@@ -41,67 +37,55 @@ antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext* ctx)
     return varName;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-// Traitement d'une constante (étiquette ConstExpr)
-// Dans la nouvelle grammaire : primaryExpr : CONST # ConstExpr
+// Traitement d'une constante (ConstExpr)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext* ctx)
 {
     int value = std::stoi(ctx->CONST()->getText());
-    
-    // Créer un temporary pour contenir la constante (ex : "w0")
     std::string temp = cfg->create_new_tempvar();
-    
     BasicBlock *bb = cfg->current_bb;
-
-    // Créer une instruction IRLdConst pour charger la constante dans ce temporary
     auto instr = std::make_unique<IRLdConst>(bb, temp, std::to_string(value));
-
     cfg->current_bb->add_IRInstr(std::move(instr));
-    
     return temp;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Traitement d'une variable (étiquette IdExpr)
-// Dans la nouvelle grammaire : primaryExpr : ID # IdExpr
+// Traitement d'une variable (IdExpr)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext* ctx)
 {
     std::string varName = ctx->ID()->getText();
-    // On retourne simplement le nom de la variable (supposé être déjà dans la table des symboles)
     return varName;
 }
 
-//
-//  REVOIR TOUTES LES FONCTIONS CI-DESSOUS
-//
-
-// Implémentation minimale pour visitMoinsExpr (pour l'opérateur unaire "-")
+///////////////////////////////////////////////////////////////////////////////
+// Traitement de l'opérateur unaire "-"
+///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext* ctx)
 {
-    std::cerr << "visitMoinsExpr not implemented yet." << std::endl;
-    return 0;
+    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+    auto zeroTemp = cfg->create_new_tempvar();
+    auto loadZero = std::make_unique<IRLdConst>(bb, zeroTemp, "0");
+    bb->add_IRInstr(std::move(loadZero));
+    auto subInstr = std::make_unique<IRSub>(bb, result, zeroTemp, exprTemp);
+    bb->add_IRInstr(std::move(subInstr));
+    return result;
 }
 
-// Implémentation minimale pour visitMoinsExpr (pour l'opérateur unaire "-")
+///////////////////////////////////////////////////////////////////////////////
+// Comparaisons binaires (==, !=)
+///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
 {
     std::cerr << "visitCompExpr not implemented yet." << std::endl;
-    return 0;
+    return std::string("0");
 }
-
-antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
-{
-    std::cerr << "visitEtLogExpr not implemented yet." << std::endl;
-    return 0;
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
-// Traitement de l'expression multiplicative (MulDivExpr)
-// Dans la nouvelle grammaire, expr op=('*'|'/'|'%') expr # MulDivExpr
+// Expression multiplicative (*, /, %)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext* ctx)
 {
@@ -109,7 +93,7 @@ antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext* ctx)
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    
+
     if (ctx->op->getText() == "*") {
         auto instr = std::make_unique<IRMul>(bb, result, left, right);
         cfg->current_bb->add_IRInstr(std::move(instr));
@@ -123,63 +107,57 @@ antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext* ctx)
         std::cerr << "Opérateur MulDivExpr inconnu: " << ctx->op->getText() << "\n";
         exit(1);
     }
-    
+
     return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// visitProg : Traitement de la fonction main.
-// Nouvelle grammaire : prog : 'int' 'main' '(' ')' '{' inst* return_stmt '}' ;
+// Traitement de la fonction main
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext* ctx)
 {
-    // Création du BasicBlock d'entrée dans le CFG
     BasicBlock* entryBB = new BasicBlock(cfg, cfg->new_BB_name());
     cfg->add_bb(entryBB);
     cfg->current_bb = entryBB;
-    
-    // Traiter toutes les instructions (inst) dans le corps de la fonction
+
     for (auto instCtx : ctx->inst()) {
         this->visit(instCtx);
     }
-    
+
     return 0;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-// visitNotExpr : Traitement de l'opérateur logique "!".
-// Exemple d'IR : result = !expr
+// Traitement du "!"
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext* ctx) {
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    
-    // Créez une instruction IRNot qui calcule le NOT logique
     auto instr = std::make_unique<IRNot>(bb, result, exprTemp);
     cfg->current_bb->add_IRInstr(std::move(instr));
     return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// visitAssignment : Traitement de "ID = expr;".
+// Affectation
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext* ctx)
 {
     std::string varName = ctx->ID()->getText();
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
-    
-    // Créez une instruction IRCopy pour effectuer l'affectation : varName <- exprTemp
     auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
     cfg->current_bb->add_IRInstr(std::move(instr));
     return varName;
 }
 
+antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx) {
+    return this->visit(ctx->expr());
+}
+
 ///////////////////////////////////////////////////////////////////////////////
-// visitAddSubExpr : Traitement des opérateurs '+' et '-'.
-// Exemple : result = expr(0) + expr(1)  ou  result = expr(0) - expr(1)
+// Additions et soustractions
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext* ctx)
 {
@@ -202,7 +180,7 @@ antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext* ctx)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// visitEgalExpr : Traitement des opérateurs "==" et "!=".
+// Comparaison d'égalité (==, !=)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext* ctx)
 {
@@ -225,23 +203,21 @@ antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext* ctx)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// visitOuExcExpr : Traitement de l'opérateur XOR bit-à-bit ('^').
+// XOR bit-à-bit
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext* ctx)
 {
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar();
-    
     BasicBlock *bb = cfg->current_bb;
-    
     auto instr = std::make_unique<IRXor>(bb, result, left, right);
     cfg->current_bb->add_IRInstr(std::move(instr));
     return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// visitOuIncExpr : Traitement de l'opérateur OR bit-à-bit ('|').
+// OR bit-à-bit
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext* ctx)
 {
@@ -249,8 +225,33 @@ antlrcpp::Any IRGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext* ctx)
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-
     auto instr = std::make_unique<IROr>(bb, result, left, right);
     cfg->current_bb->add_IRInstr(std::move(instr));
+    return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Traitement de l'opérateur logique "&&"
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
+{
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+
+    // Étape 1 : left && right <=> (left != 0) && (right != 0)
+    // Étape 2 : on génère une comparaison "!=" pour les deux
+    std::string condLeft = cfg->create_new_tempvar();
+    std::string condRight = cfg->create_new_tempvar();
+
+    // Génère : condLeft = (left != 0)
+    bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, condLeft, left, "0"));
+    // Génère : condRight = (right != 0)
+    bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, condRight, right, "0"));
+
+    // Génère : result = condLeft & condRight
+    bb->add_IRInstr(std::make_unique<IRAnd>(bb, result, condLeft, condRight));
+
     return result;
 }

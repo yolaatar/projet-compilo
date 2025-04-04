@@ -3,6 +3,10 @@
 
 extern const CodeGenBackend* codegenBackend;
 
+std::vector<std::string> IRInstr::getParams(){
+    return params;
+}
+
 void IRReturn::gen_asm(std::ostream &o) {
     codegenBackend->gen_return(o, bb->cfg->IR_reg_to_asm(params[0]));
 }
@@ -85,6 +89,13 @@ void IREgal::gen_asm(std::ostream &o) {
 
 void IRNotEgal::gen_asm(std::ostream &o) {
     codegenBackend->gen_notegal(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2]));
+}
+
+void IRAnd::gen_asm(std::ostream &o)  {
+    codegenBackend->gen_and(o,
         bb->cfg->IR_reg_to_asm(params[0]),
         bb->cfg->IR_reg_to_asm(params[1]),
         bb->cfg->IR_reg_to_asm(params[2]));

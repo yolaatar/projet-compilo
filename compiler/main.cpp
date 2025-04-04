@@ -59,6 +59,8 @@ int main(int argn, const char **argv)
     CFG cfg(&defFunc, stv);
     cgv.cfg = &cfg;
     cgv.visit(tree);
+    // stv.print_symbol_table();
+    // cfg.current_bb->print_instrs();
     cfg.gen_asm(std::cout);
   }
 
