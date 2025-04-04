@@ -96,11 +96,11 @@ void X86Backend::gen_call(std::ostream &os, const std::string &func) const {
     os << "    call " << func << "\n";
 }
 
-void X86Backend::gen_prologue(std::ostream &os, std::string &name) const {
+void X86Backend::gen_prologue(std::ostream &os, std::string &name, int Stacksize) const {
     os << ".globl " << name << "\n";
     os << name << ":\n";
     os << "    pushq %rbp\n";
-    os << "    movq %rsp, %rbp\n";
+    os << "    movq %rsp, %rbp\n";  
 }
 
 void X86Backend::gen_epilogue(std::ostream &os) const {

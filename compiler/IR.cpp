@@ -77,7 +77,7 @@ std::string CFG::IR_reg_to_asm(std::string name)
 
         if (codegenBackend->getArchitecture() == "arm64")
         {
-            return "[sp, #" + std::to_string(-offset) + "]"; // ARM: sp, positive offset
+            return "[x29, #" + std::to_string(offset) + "]";
         }
         else
         {                                             // x86
@@ -101,16 +101,23 @@ void CFG::gen_asm(std::ostream &o)
 
 void CFG::gen_asm_prologue(std::ostream &o)
 {
+    // Compute the total size to reserve on the stack (must be positive)
+    int stackSize = (-stv.offset + 15) / 16 * 16; // Round up to nearest 16
+
     if (codegenBackend->getArchitecture() == "arm64")
     {
-        std::string fullName = ast->name + "#" + std::to_string(maxOffset);
-        codegenBackend->gen_prologue(o, fullName);
+        std::string cleanName = ast->name;
+        size_t sharp = cleanName.find('#');
+        if (sharp != std::string::npos) cleanName = cleanName.substr(0, sharp);
+
+        codegenBackend->gen_prologue(o, cleanName, stackSize);  // ✅ with size
     }
     else
-    { // x86
-        codegenBackend->gen_prologue(o, ast->name);
+    {
+        codegenBackend->gen_prologue(o, ast->name, stackSize);  // X86 doesn't need stackSize
     }
 }
+
 
 void CFG::gen_asm_epilogue(std::ostream &o)
 {
