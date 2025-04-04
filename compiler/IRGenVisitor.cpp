@@ -51,7 +51,8 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
     std::string temp = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
     auto instr = std::make_unique<IRLdConst>(bb, temp, std::to_string(value));
-    cfg->current_bb->add_IRInstr(std::move(instr));
+    bb->add_IRInstr(std::move(instr));
+    // Retourner explicitement une std::string dans le std::any
     return temp;
 }
 
@@ -61,7 +62,7 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
-    return varName;
+    return varName; // Retourne une std::string
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -220,17 +221,24 @@ antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Additions et soustractions
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx)
+
+antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext* ctx)
 {
+    // Évalue les sous-expressions et s'assure de renvoyer des std::string
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
 
-    if (ctx->op->getText() == "+")
-    {
+    if (ctx->op->getText() == "+") {
         auto instr = std::make_unique<IRAdd>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
+        bb->add_IRInstr(std::move(instr));
+    } else if (ctx->op->getText() == "-") {
+        auto instr = std::make_unique<IRSub>(bb, result, left, right);
+        bb->add_IRInstr(std::move(instr));
+    } else {
+        std::cerr << "Opérateur inconnu in AddSubExpr: " << ctx->op->getText() << "\n";
+        exit(1);
     }
     else if (ctx->op->getText() == "-")
     {
