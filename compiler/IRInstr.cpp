@@ -118,3 +118,14 @@ void IRGe::gen_asm(std::ostream &o) {
         bb->cfg->IR_reg_to_asm(params[2])
     );
 }
+
+void IRPutChar::gen_asm(std::ostream &o) {
+    codegenBackend->gen_copy(o, "w0", bb->cfg->IR_reg_to_asm(params[0]));
+    codegenBackend->gen_call(o, "putchar");
+}
+
+
+void IRGetChar::gen_asm(std::ostream &o) {
+    codegenBackend->gen_call(o, "getchar");
+    codegenBackend->gen_copy(o, bb->cfg->IR_reg_to_asm(params[0]), "w0");
+}

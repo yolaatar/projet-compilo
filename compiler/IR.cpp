@@ -1,8 +1,6 @@
 #include "IR.h"
 #include "IRInstr.h"
 
-
-
 /**
  * DefFonction
  */
@@ -64,10 +62,13 @@ void CFG::add_bb(BasicBlock *bb)
     current_bb = bb;
 }
 /////////
-static bool isNumber(const std::string &s) {
-    if (s.empty()) return false;
+static bool isNumber(const std::string &s)
+{
+    if (s.empty())
+        return false;
     size_t start = (s[0] == '-') ? 1 : 0;
-    for (size_t i = start; i < s.size(); i++) {
+    for (size_t i = start; i < s.size(); i++)
+    {
         if (!std::isdigit(s[i]))
             return false;
     }
@@ -77,7 +78,7 @@ static bool isNumber(const std::string &s) {
 // IR.cpp
 std::string CFG::IR_reg_to_asm(std::string name)
 {
-      if (isNumber(name))
+    if (isNumber(name))
         return "#" + name;
 
     if (!codegenBackend)
@@ -106,6 +107,11 @@ std::string CFG::IR_reg_to_asm(std::string name)
 
 void CFG::gen_asm(std::ostream &o)
 {
+    if (usesGetChar)
+        o << ".extern getchar\n";
+    if (usesPutChar)
+        o << ".extern putchar\n";
+
     gen_asm_prologue(o);
     for (auto bb : bbs)
     {
@@ -123,16 +129,16 @@ void CFG::gen_asm_prologue(std::ostream &o)
     {
         std::string cleanName = ast->name;
         size_t sharp = cleanName.find('#');
-        if (sharp != std::string::npos) cleanName = cleanName.substr(0, sharp);
+        if (sharp != std::string::npos)
+            cleanName = cleanName.substr(0, sharp);
 
-        codegenBackend->gen_prologue(o, cleanName, stackSize);  
+        codegenBackend->gen_prologue(o, cleanName, stackSize);
     }
     else
     {
-        codegenBackend->gen_prologue(o, ast->name, stackSize);  // X86 doesn't need stackSize
+        codegenBackend->gen_prologue(o, ast->name, stackSize); // X86 doesn't need stackSize
     }
 }
-
 
 void CFG::gen_asm_epilogue(std::ostream &o)
 {

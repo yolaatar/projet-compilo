@@ -142,4 +142,17 @@ public:
     void gen_asm(std::ostream &o) override;
 };
 
+class IRPutChar : public IRInstr {
+public: 
+    IRPutChar(BasicBlock *bb, const std::string &src)
+        : IRInstr(bb, {src}) {}
+    void gen_asm(std::ostream &o) override;
+};
+
+class IRGetChar : public IRInstr {
+public:
+    IRGetChar(BasicBlock *bb, const std::string &dest)
+        : IRInstr(bb, {dest}) {}
+    void gen_asm(std::ostream &o) override;
+};
 #endif

@@ -117,8 +117,9 @@ void ARM64Backend::gen_or(std::ostream &os, const std::string &dest,
 }
 
 void ARM64Backend::gen_call(std::ostream &os, const std::string &func) const {
-    os << "    bl " << func << "\n";          // Branch with link (call) to function
+    os << "    bl _" << func << "\n";  // NOTE: underscore before function
 }
+
 
 void ARM64Backend::gen_prologue(std::ostream &os, std::string &name, int stackSize) const {
     os << ".globl _" << name << "\n";
@@ -144,9 +145,21 @@ void ARM64Backend::gen_epilogue(std::ostream &os) const {
 
 void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest,
                             const std::string &src) const {
-    os << "    ldr w0, " << src << "\n";      // Load src to w0
-    os << "    str w0, " << dest << "\n";     // Store w0 to dest
+    bool srcIsMem = src.find('[') != std::string::npos;
+    bool destIsMem = dest.find('[') != std::string::npos;
+
+    if (srcIsMem && destIsMem) {
+        os << "    ldr w0, " << src << "\n";
+        os << "    str w0, " << dest << "\n";
+    } else if (srcIsMem && !destIsMem) {
+        os << "    ldr " << dest << ", " << src << "\n";
+    } else if (!srcIsMem && destIsMem) {
+        os << "    str " << src << ", " << dest << "\n";
+    } else { // register to register
+        os << "    mov " << dest << ", " << src << "\n";
+    }
 }
+
 
 void ARM64Backend::gen_and(std::ostream &os,
                            const std::string &dest,

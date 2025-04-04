@@ -240,16 +240,6 @@ antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext* ctx)
         std::cerr << "Opérateur inconnu in AddSubExpr: " << ctx->op->getText() << "\n";
         exit(1);
     }
-    else if (ctx->op->getText() == "-")
-    {
-        auto instr = std::make_unique<IRSub>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-    else
-    {
-        std::cerr << "Opérateur inconnu in AddSubExpr: " << ctx->op->getText() << "\n";
-        exit(1);
-    }
     return result;
 }
 
@@ -294,6 +284,29 @@ antlrcpp::Any IRGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext *ctx)
     cfg->current_bb->add_IRInstr(std::move(instr));
     return result;
 }
+
+antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext* ctx) {
+    std::string name = ctx->ID()->getText();
+    BasicBlock* bb = cfg->current_bb;
+
+    if (name == "getchar") {
+        cfg->usesGetChar = true; // Indique que getchar est utilisé
+        std::string result = cfg->create_new_tempvar();
+        bb->add_IRInstr(std::make_unique<IRGetChar>(bb, result));
+        return result;
+    } else if (name == "putchar") {
+        cfg->usesPutChar = true; // Indique que putchar est utilisé
+        std::string arg = std::any_cast<std::string>(visit(ctx->expr(0)));
+        bb->add_IRInstr(std::make_unique<IRPutChar>(bb, arg));
+        return arg;
+    }
+
+    // Generic call fallback
+    bb->add_IRInstr(std::make_unique<IRCall>(bb, name));
+    return name;
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // OR bit-à-bit
