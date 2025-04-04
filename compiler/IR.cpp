@@ -55,15 +55,27 @@ void CFG::add_bb(BasicBlock* bb){
     current_bb = bb;
 }
 
+// IR.cpp
 std::string CFG::IR_reg_to_asm(std::string name) {
+    if (!codegenBackend) {
+        stv.writeError("Codegen backend not initialized!");
+        return "0";
+    }
+
     if (stv.symbolTable.count(name)) {
         int offset = stv.symbolTable[name].offset;
-        return std::to_string(offset) + "(%rbp)";
-    } 
+
+        if (codegenBackend->getArchitecture() == "arm64") {
+            return "[sp, #" + std::to_string(-offset) + "]"; // ARM: sp, positive offset
+        } else { // x86
+            return std::to_string(offset) + "(%rbp)"; // X86: negative offset
+        }
+    }
 
     stv.writeError("Variable " + name + " non trouvée");
-    return "0(%rbp)"; 
+    return (codegenBackend->getArchitecture() == "arm64") ? "[sp, #0]" : "0(%rbp)";
 }
+
 
 void CFG::gen_asm(std::ostream& o) {
     gen_asm_prologue(o);

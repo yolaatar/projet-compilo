@@ -31,6 +31,7 @@ public:
     virtual void gen_and(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const = 0;
     
     virtual std::string getTempPrefix() const = 0;
+    virtual std::string getArchitecture() const = 0;    
 };
 
 #endif

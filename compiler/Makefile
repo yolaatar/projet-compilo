@@ -23,6 +23,7 @@ OBJECTS = build/ifccBaseVisitor.o \
 		  build/IRInstr.o \
           build/SymbolTableVisitor.o \
           build/X86Backend.o  \
+		  build/ARM64Backend.o \
 		  build/BackendInitializr.o
 
 ifcc: $(OBJECTS)

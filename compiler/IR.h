@@ -62,6 +62,7 @@ public:
 
     DefFonction* ast;
     BasicBlock* current_bb;
+    int maxOffset = 0;
 
     void add_bb(BasicBlock* bb);
     std::string IR_reg_to_asm(std::string reg);

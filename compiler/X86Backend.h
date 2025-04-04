@@ -31,6 +31,7 @@ public:
     virtual void gen_epilogue(std::ostream &os) const override;
     virtual void gen_and(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
     virtual std::string getTempPrefix() const override;
+    virtual std::string getArchitecture() const override;
 };
 
 #endif // X86BACKEND_H

@@ -1,96 +1,186 @@
 #include "ARM64Backend.h"
-#include <ostream>
-
-// Génère une instruction de déplacement immediate : mov dest, #src
-void ARM64Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
-    os << "    mov " << dest << ", #" << src << "\n";
-}
-
-// int ARM64Backend::getVarOffset(const std::string &varName) const {
-//     // On suppose que le backend a accès à une table des symboles ou qu'on lui transmet l'offset associé.
-//     // Par exemple, on pourrait avoir un map<string,int> symbolOffsets.
-//     auto it = symbolOffsets.find(varName);
-//     if(it != symbolOffsets.end()){
-//         return it->second;
-//     }
-//     // Gérer le cas d'une variable non trouvée (ici, par défaut, 0)
-//     return 0;
-// }
-
-// std::string ARM64Backend::mapVar(const std::string &varName) const {
-//     int offset = getVarOffset(varName);
-//     return "[sp, #" + std::to_string(offset) + "]";
-// }
-
-// // Génère une instruction d'addition : add dest, src1, src2
-// void ARM64Backend::gen_add(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    add " << dest << ", " << src1 << ", " << src2 << "\n";
-// }
-
-// // Génère une instruction de soustraction : sub dest, src1, src2
-// void ARM64Backend::gen_sub(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    sub " << dest << ", " << src1 << ", " << src2 << "\n";
-// }
-
-// // Génère une instruction de multiplication : mul dest, src1, src2
-// void ARM64Backend::gen_mul(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    mul " << dest << ", " << src1 << ", " << src2 << "\n";
-// }
-
-// // Génère une instruction de division signée : sdiv dest, src1, src2
-// void ARM64Backend::gen_div(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    sdiv " << dest << ", " << src1 << ", " << src2 << "\n";
-// }
-
-// // Pour modulo, on calcule le quotient puis le reste : remainder = dividend - (quotient * divisor)
-// // Ici, on utilise un registre tempora fixe (par exemple, x9) pour stocker le quotient.
-// void ARM64Backend::gen_mod(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    sdiv x9, " << src1 << ", " << src2 << "\n";
-//     os << "    mul x9, x9, " << src2 << "\n";
-//     os << "    sub " << dest << ", " << src1 << ", x9\n";
-// }
+#include <iostream>
+#include <cctype>
 
 void ARM64Backend::gen_return(std::ostream &os, const std::string &src) const {
-    // Utilise sxtw pour étendre le registre 32 bits (src) en 64 bits dans x0.
-    os << "    sxtw x0, " << src << "\n";
+    if (isdigit(src[0]) || (src[0] == '-' && isdigit(src[1]))) {
+        os << "    mov w0, #" << src << "\n";  // Immediate value
+    } else {
+        // Handle x86-style "-4(%rbp)" or plain "-4"
+        std::string adjusted_src = src;
+        if (src.find("(%rbp)") != std::string::npos) {
+            adjusted_src = "[x29, #" + src.substr(0, src.find("(%rbp)")) + "]";
+        } else if (src.find('[') == std::string::npos) {
+            adjusted_src = "[x29, #" + src + "]";
+        }
+        os << "    ldr w0, " << adjusted_src << "\n";  // Load from memory
+    }
+}
+
+void ARM64Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
+    // Adjust dest if it’s x86-style or a plain offset
+    std::string adjusted_dest = dest;
+    if (dest.find("(%rbp)") != std::string::npos) {
+        adjusted_dest = "[x29, #" + dest.substr(0, dest.find("(%rbp)")) + "]";
+    } else if (dest.find('[') == std::string::npos) {
+        adjusted_dest = "[x29, #" + dest + "]";
+    }
+
+    if (isdigit(src[0]) || (src[0] == '-' && isdigit(src[1]))) {
+        os << "    mov w0, #" << src << "\n";
+        os << "    str w0, " << adjusted_dest << "\n";
+    } else {
+        // Adjust src if it’s x86-style or a plain offset
+        std::string adjusted_src = src;
+        if (src.find("(%rbp)") != std::string::npos) {
+            adjusted_src = "[x29, #" + src.substr(0, src.find("(%rbp)")) + "]";
+        } else if (src.find('[') == std::string::npos) {
+            adjusted_src = "[x29, #" + src + "]";
+        }
+        os << "    ldr w0, " << adjusted_src << "\n";
+        os << "    str w0, " << adjusted_dest << "\n";
+    }
+}
+
+void ARM64Backend::gen_add(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    add w0, w0, w1\n";            // Add w1 to w0
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_sub(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    sub w0, w0, w1\n";            // Subtract w1 from w0
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_mul(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    mul w0, w0, w1\n";            // Multiply w0 by w1
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_div(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0 (dividend)
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1 (divisor)
+    os << "    sdiv w0, w0, w1\n";           // Signed divide w0 by w1
+    os << "    str w0, " << dest << "\n";     // Store quotient to dest
+}
+
+void ARM64Backend::gen_mod(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0 (dividend)
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1 (divisor)
+    os << "    sdiv w2, w0, w1\n";           // Signed divide w0 by w1, quotient in w2
+    os << "    msub w0, w2, w1, w0\n";       // w0 = w0 - (w2 * w1), remainder in w0
+    os << "    str w0, " << dest << "\n";     // Store remainder to dest
+}
+
+void ARM64Backend::gen_not(std::ostream &os, const std::string &dest,
+                           const std::string &src) const {
+    os << "    ldr w0, " << src << "\n";      // Load src to w0
+    os << "    cmp w0, #0\n";                // Compare with 0
+    os << "    cset w0, eq\n";               // Set w0 to 1 if equal (src == 0), else 0
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_egal(std::ostream &os, const std::string &dest,
+                            const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    cmp w0, w1\n";                // Compare w0 and w1
+    os << "    cset w0, eq\n";               // Set w0 to 1 if equal, else 0
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_notegal(std::ostream &os, const std::string &dest,
+                               const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    cmp w0, w1\n";                // Compare w0 and w1
+    os << "    cset w0, ne\n";               // Set w0 to 1 if not equal, else 0
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_xor(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    std::cerr << "[gen_xor] dest = " << dest << ", src1 = " << src1 << ", src2 = " << src2 << "\n";
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    eor w0, w0, w1\n";            // XOR w0 with w1
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_or(std::ostream &os, const std::string &dest,
+                          const std::string &src1, const std::string &src2) const {
+    std::cerr << "[gen_or] dest = " << dest << ", src1 = " << src1 << ", src2 = " << src2 << "\n";
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    orr w0, w0, w1\n";            // OR w0 with w1
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+void ARM64Backend::gen_call(std::ostream &os, const std::string &func) const {
+    os << "    bl " << func << "\n";          // Branch with link (call) to function
+}
+
+void ARM64Backend::gen_prologue(std::ostream &os, std::string &name) const {
+    os << ".globl _" << name << "\n";
+    os << "_" << name << ":\n";
+    os << "    stp x29, x30, [sp, #-16]!\n";
+    os << "    mov x29, sp\n";
+
+    int totalOffset = std::abs(CFG::maxOffset); // or pass it as a parameter
+    // Round up to nearest multiple of 16 for alignment
+    totalOffset = (totalOffset + 15) / 16 * 16;
+
+    os << "    sub sp, sp, #" << totalOffset << "\n";
 }
 
 
-// // Génère un appel de fonction avec branch with link
-// void ARM64Backend::gen_call(std::ostream &os, const std::string &func) const {
-//     os << "    bl " << func << "\n";
-// }
 
-// // Génère une instruction OR bit-à-bit : orr dest, src1, src2
-// void ARM64Backend::gen_or(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    orr " << dest << ", " << src1 << ", " << src2 << "\n";
-// }
 
-// // Génère une instruction XOR bit-à-bit : eor dest, src1, src2
-// void ARM64Backend::gen_xor(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    eor " << dest << ", " << src1 << ", " << src2 << "\n";
-// }
-
-// // Génère une instruction de négation bit-à-bit : mvn dest, src
-// // (ARM64 ne possède pas d'instruction "not" directe, mais mvn effectue une inversion binaire)
-// void ARM64Backend::gen_not(std::ostream &os, const std::string &dest, const std::string &src) const {
-//     os << "    mvn " << dest << ", " << src << "\n";
-// }
-
-// // Génère une comparaison pour l'égalité : cmp src1, src2 puis cset dest, eq
-// void ARM64Backend::gen_egal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    cmp " << src1 << ", " << src2 << "\n";
-//     os << "    cset " << dest << ", eq\n";
-// }
-
-// // Génère une comparaison pour la non-égalité : cmp src1, src2 puis cset dest, ne
-// void ARM64Backend::gen_notegal(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-//     os << "    cmp " << src1 << ", " << src2 << "\n";
-//     os << "    cset " << dest << ", ne\n";
-// }
-
-void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const {
-    // Ici, 'dest' doit représenter l'adresse mémoire de la variable (par exemple, "[sp, #offset]")
-    // et 'src' le registre contenant la valeur à copier (par exemple, "w0").
-    os << "    str " << src << ", " << dest << "\n";
+void ARM64Backend::gen_epilogue(std::ostream &os) const {
+    os << "    ldp x29, x30, [sp], #16\n";   // Restore frame pointer and link register
+    os << "    ret\n";                       // Return
 }
+
+void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest,
+                            const std::string &src) const {
+    os << "    ldr w0, " << src << "\n";      // Load src to w0
+    os << "    str w0, " << dest << "\n";     // Store w0 to dest
+}
+
+void ARM64Backend::gen_and(std::ostream &os,
+                           const std::string &dest,
+                           const std::string &src1,
+                           const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
+    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << "    and w0, w0, w1\n";            // AND w0 with w1
+    os << "    str w0, " << dest << "\n";     // Store result to dest
+}
+
+std::string ARM64Backend::getTempPrefix() const {
+    return "!tmp";
+}
+
+std::string ARM64Backend::getArchitecture() const {
+    return "arm64";
+}
+
+std::string ARM64Backend::adjustMemOperand(const std::string &op) const {
+    if (op.find("(%rbp)") != std::string::npos)
+        return "[x29, #" + op.substr(0, op.find("(%rbp)")) + "]";
+    if (op.find('[') == std::string::npos)
+        return "[x29, #" + op + "]";
+    return op;
+}
+

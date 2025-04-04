@@ -128,3 +128,7 @@ void X86Backend::gen_and(std::ostream &os,
 std::string X86Backend::getTempPrefix() const {
     return "!tmp";
 }
+
+std::string X86Backend::getArchitecture() const {
+    return "X86";
+}
