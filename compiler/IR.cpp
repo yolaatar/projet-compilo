@@ -1,6 +1,8 @@
 #include "IR.h"
 #include "IRInstr.h"
 
+
+
 /**
  * DefFonction
  */
@@ -61,10 +63,23 @@ void CFG::add_bb(BasicBlock *bb)
     bbs.push_back(bb);
     current_bb = bb;
 }
+/////////
+static bool isNumber(const std::string &s) {
+    if (s.empty()) return false;
+    size_t start = (s[0] == '-') ? 1 : 0;
+    for (size_t i = start; i < s.size(); i++) {
+        if (!std::isdigit(s[i]))
+            return false;
+    }
+    return true;
+}
 
 // IR.cpp
 std::string CFG::IR_reg_to_asm(std::string name)
 {
+      if (isNumber(name))
+        return "#" + name;
+
     if (!codegenBackend)
     {
         stv.writeError("Codegen backend not initialized!");
@@ -110,7 +125,7 @@ void CFG::gen_asm_prologue(std::ostream &o)
         size_t sharp = cleanName.find('#');
         if (sharp != std::string::npos) cleanName = cleanName.substr(0, sharp);
 
-        codegenBackend->gen_prologue(o, cleanName, stackSize);  // ✅ with size
+        codegenBackend->gen_prologue(o, cleanName, stackSize);  
     }
     else
     {

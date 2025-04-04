@@ -100,3 +100,21 @@ void IRAnd::gen_asm(std::ostream &o)  {
         bb->cfg->IR_reg_to_asm(params[1]),
         bb->cfg->IR_reg_to_asm(params[2]));
 }
+
+
+void IRGt::gen_asm(std::ostream &o) {
+    // Utilise la méthode gen_gt du backend pour générer l'assembleur
+    codegenBackend->gen_gt(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2])
+    );
+}
+
+void IRGe::gen_asm(std::ostream &o) {
+    codegenBackend->gen_ge(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2])
+    );
+}

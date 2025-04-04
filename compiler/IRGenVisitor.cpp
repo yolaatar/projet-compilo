@@ -80,9 +80,30 @@ antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
 {
-    std::cerr << "visitCompExpr not implemented yet." << std::endl;
-    return std::string("0");
+    // Évaluer les deux sous-expressions
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    // Créer un nouveau temporary pour le résultat
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+
+    std::string op = ctx->op->getText();
+    if (op == ">=") {
+         bb->add_IRInstr(std::make_unique<IRGe>(bb, result, left, right));
+    } else if (op == ">") {
+         bb->add_IRInstr(std::make_unique<IRGt>(bb, result, left, right));
+    } else if (op == "==") {
+         bb->add_IRInstr(std::make_unique<IREgal>(bb, result, left, right));
+    } else if (op == "!=") {
+         bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, result, left, right));
+    } else {
+         std::cerr << "Opérateur de comparaison non implémenté: " << op << "\n";
+         exit(1);
+    }
+    return result;
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Expression multiplicative (*, /, %)
@@ -159,7 +180,7 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext* ctx)
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
 
-    if (varName != exprTemp) { // ✅ éviter les copies inutiles
+    if (varName != exprTemp) { // éviter les copies inutiles
         auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
         cfg->current_bb->add_IRInstr(std::move(instr));
     }
@@ -256,6 +277,19 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
 
+    // Génère directement un AND bitwise sur left et right
+    bb->add_IRInstr(std::make_unique<IRAnd>(bb, result, left, right));
+
+    return result;
+}
+/*
+antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
+{
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+
     // Étape 1 : left && right <=> (left != 0) && (right != 0)
     // Étape 2 : on génère une comparaison "!=" pour les deux
     std::string condLeft = cfg->create_new_tempvar();
@@ -271,3 +305,4 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
 
     return result;
 }
+*/

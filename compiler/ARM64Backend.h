@@ -30,6 +30,9 @@ public:
     virtual std::string getTempPrefix() const override;
     virtual std::string getArchitecture() const override;
     virtual std::string adjustMemOperand(const std::string &op) const ;
+    virtual std::string loadOperand(const std::string &operand, const std::string &targetReg) const;
+    virtual void gen_gt(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const;
+    virtual void gen_ge(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const;
 
 };
 

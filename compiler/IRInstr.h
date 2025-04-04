@@ -3,131 +3,143 @@
 
 #include <vector>
 #include <string>
-#include <ostream> 
-
+#include <ostream>
 #include "CodeGenBackend.h"
 
-class BasicBlock;
+class BasicBlock; // Déclaration anticipée de BasicBlock
 
+// Classe de base pour les instructions IR.
 class IRInstr {
-    public:
-        IRInstr(BasicBlock* bb_, std::vector<std::string> params_) 
-            : bb(bb_), params(params_) {}
-        virtual ~IRInstr() = default;
-
-        virtual void gen_asm(std::ostream &o) = 0;
-        std::vector<std::string> getParams();
-
-    protected:
-        BasicBlock *bb;
-        std::vector<std::string> params;
+public:
+    IRInstr(BasicBlock* bb_, const std::vector<std::string>& params_)
+        : bb(bb_), params(params_) {}
+    virtual ~IRInstr() = default;
+    virtual void gen_asm(std::ostream &o) = 0;
+    std::vector<std::string> getParams();
+protected:
+    BasicBlock *bb;
+    std::vector<std::string> params;
 };
 
+// Classes dérivées :
+
 class IRReturn : public IRInstr {
-    public:
-        IRReturn(BasicBlock *bb, const std::string &src)
+public:
+    IRReturn(BasicBlock *bb, const std::string &src)
         : IRInstr(bb, {src}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRLdConst : public IRInstr {
-    public:
-        IRLdConst(BasicBlock *bb, const std::string &dest, const std::string &constant)
+public:
+    IRLdConst(BasicBlock *bb, const std::string &dest, const std::string &constant)
         : IRInstr(bb, {dest, constant}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRCopy : public IRInstr {
-    public:
-        IRCopy(BasicBlock *bb, const std::string &dest, const std::string &src)
+public:
+    IRCopy(BasicBlock *bb, const std::string &dest, const std::string &src)
         : IRInstr(bb, {dest, src}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRAdd : public IRInstr {
-    public:
-        IRAdd(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRAdd(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRSub : public IRInstr {
-    public:
-        IRSub(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRSub(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRMul : public IRInstr {
-    public:
-        IRMul(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRMul(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRDiv : public IRInstr {
-    public:
-        IRDiv(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRDiv(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRMod : public IRInstr {
-    public:
-        IRMod(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRMod(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRCall : public IRInstr {
-    public:
-        IRCall(BasicBlock *bb, const std::string &func)
+public:
+    IRCall(BasicBlock *bb, const std::string &func)
         : IRInstr(bb, {func}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRNot : public IRInstr {
-    public:
-        IRNot(BasicBlock *bb, const std::string &dest, const std::string &src)
+public:
+    IRNot(BasicBlock *bb, const std::string &dest, const std::string &src)
         : IRInstr(bb, {dest, src}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRXor : public IRInstr {
-    public:
-        IRXor(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRXor(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IROr : public IRInstr {
-    public:
-        IROr(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IROr(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IREgal : public IRInstr {
-    public:
-        IREgal(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IREgal(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRNotEgal : public IRInstr {
-    public:
-        IRNotEgal(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+public:
+    IRNotEgal(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
         : IRInstr(bb, {dest, src1, src2}) {}
-        void gen_asm(std::ostream &o) override;
+    void gen_asm(std::ostream &o) override;
 };
 
 class IRAnd : public IRInstr {
-    public:
-        IRAnd(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
-            : IRInstr(bb, {dest, src1, src2}) {}
-    
-        void gen_asm(std::ostream &o) override;
-    };    
+public:
+    IRAnd(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+        : IRInstr(bb, {dest, src1, src2}) {}
+    void gen_asm(std::ostream &o) override;
+};
 
+class IRGt : public IRInstr {
+public:
+    IRGt(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+        : IRInstr(bb, {dest, src1, src2}) {}
+    void gen_asm(std::ostream &o) override;
+};
+
+class IRGe : public IRInstr {
+public:
+    IRGe(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+        : IRInstr(bb, {dest, src1, src2}) {}
+    void gen_asm(std::ostream &o) override;
+};
 
 #endif

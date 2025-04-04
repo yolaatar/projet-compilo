@@ -152,8 +152,8 @@ void ARM64Backend::gen_and(std::ostream &os,
                            const std::string &dest,
                            const std::string &src1,
                            const std::string &src2) const {
-    os << "    ldr w0, " << src1 << "\n";     // Load src1 to w0
-    os << "    ldr w1, " << src2 << "\n";     // Load src2 to w1
+    os << loadOperand(src1, "w0");
+    os << loadOperand(src2, "w1");
     os << "    and w0, w0, w1\n";            // AND w0 with w1
     os << "    str w0, " << dest << "\n";     // Store result to dest
 }
@@ -174,3 +174,30 @@ std::string ARM64Backend::adjustMemOperand(const std::string &op) const {
     return op;
 }
 
+std::string ARM64Backend::loadOperand(const std::string &operand, const std::string &targetReg) const {
+    // Vérifie si l'opérande est un immédiat en détectant le caractère '#' en première position.
+    if (!operand.empty() && operand[0] == '#') {
+        // Si c'est un immédiat, on génère une instruction mov.
+        return "    mov " + targetReg + ", " + operand + "\n";
+    }
+    // Sinon, on suppose que l'opérande est déjà au format mémoire (ex. "[x29, #...]" ou similaire)
+    return "    ldr " + targetReg + ", " + operand + "\n";
+}
+
+void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr x0, " << src1 << "\n";
+    os << "    ldr x1, " << src2 << "\n";
+    os << "    cmp x0, x1\n";
+    os << "    cset x0, ge\n"; // Renvoie 1 si x0 >= x1, sinon 0
+    os << "    str x0, " << dest << "\n";
+}
+
+void ARM64Backend::gen_gt(std::ostream &os, const std::string &dest,
+                           const std::string &src1, const std::string &src2) const {
+    os << "    ldr x0, " << src1 << "\n";
+    os << "    ldr x1, " << src2 << "\n";
+    os << "    cmp x0, x1\n";
+    os << "    cset x0, gt\n"; // Renvoie 1 si x0 > x1, sinon 0
+    os << "    str x0, " << dest << "\n";
+}
