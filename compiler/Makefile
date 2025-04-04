@@ -42,7 +42,7 @@ build/%.o: generated/%.cpp
 	@mkdir -p build
 	$(CC) $(CCFLAGS) -MMD -o $@ $< 
 
-# automagic dependency management: `gcc -MMD` generates all the .d files for us
+# automagic dependency management: gcc -MMD generates all the .d files for us
 -include build/*.d
 build/%.d:
 
@@ -61,7 +61,7 @@ generated/ifccParser.cpp: ifcc.g4
 ##########################################
 # view the parse tree in a graphical window
 
-# Usage: `make gui FILE=path/to/your/file.c`
+# Usage: make gui FILE=path/to/your/file.c
 FILE ?= ../tests/testfiles/1_return42.c
 
 gui:
