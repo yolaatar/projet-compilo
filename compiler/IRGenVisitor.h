@@ -28,6 +28,8 @@ class  IRGenVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
         virtual antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override;
         virtual antlrcpp::Any visitEtLogExpr(ifccParser::EtLogExprContext* ctx) override;
+        virtual antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext* ctx) override;
+        virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext* ctx) override;
 
         private:
         int tempCpt = 1;

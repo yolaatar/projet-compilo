@@ -80,8 +80,19 @@ antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
 {
-    std::cerr << "visitCompExpr not implemented yet." << std::endl;
-    return std::string("0");
+    // Visiter la première sous-expression
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    // Visiter la deuxième sous-expression
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    // Créer une variable temporaire pour stocker le résultat de la comparaison
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+    
+    // Créer une instruction IRComp avec l'opérateur récupéré (par exemple, ">", "<", etc.)
+    auto instr = std::make_unique<IRComp>(bb, result, left, right, ctx->op->getText());
+    bb->add_IRInstr(std::move(instr));
+    
+    return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -255,3 +266,69 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
 
     return result;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Traitement du "if - else"
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
+{
+    std::string cond = std::any_cast<std::string>(this->visit(ctx->expr()));
+    BasicBlock* currentBB = cfg->current_bb;
+    
+    BasicBlock* thenBB = new BasicBlock(cfg, cfg->new_BB_name());  
+    BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name());   
+    BasicBlock* elseBB = nullptr;
+    
+    if (ctx->block().size() > 1) {
+         elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+    } else {
+         elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+    }
+    
+    currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, cond, thenBB->label, elseBB->label));
+    
+    cfg->add_bb(thenBB);
+    cfg->current_bb = thenBB;
+    this->visit(ctx->block(0)); 
+    thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+    
+    cfg->add_bb(elseBB);
+    cfg->current_bb = elseBB;
+    if (ctx->block().size() > 1) {
+         this->visit(ctx->block(1)); 
+    }
+    elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
+    
+    cfg->add_bb(mergeBB);
+    cfg->current_bb = mergeBB;
+    
+    return std::string("0");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Traitement du "while"
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx)
+{
+
+    BasicBlock* condBB = new BasicBlock(cfg, cfg->new_BB_name()); 
+    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->new_BB_name()); 
+    BasicBlock* exitBB = new BasicBlock(cfg, cfg->new_BB_name());  
+    cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, condBB->label));
+    
+    cfg->add_bb(condBB);
+    cfg->current_bb = condBB;
+    std::string cond = std::any_cast<std::string>(this->visit(ctx->expr()));
+    condBB->add_IRInstr(std::make_unique<IRJumpCond>(condBB, cond, bodyBB->label, exitBB->label));
+    
+    cfg->add_bb(bodyBB);
+    cfg->current_bb = bodyBB;
+    this->visit(ctx->block());
+    bodyBB->add_IRInstr(std::make_unique<IRJump>(bodyBB, condBB->label));
+    
+    cfg->add_bb(exitBB);
+    cfg->current_bb = exitBB;
+    
+    return std::string("0");
+}
+

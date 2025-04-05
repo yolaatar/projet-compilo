@@ -100,3 +100,23 @@ void IRAnd::gen_asm(std::ostream &o)  {
         bb->cfg->IR_reg_to_asm(params[1]),
         bb->cfg->IR_reg_to_asm(params[2]));
 }
+
+void IRJumpCond::gen_asm(std::ostream &o) {
+    codegenBackend->gen_jump_cond(o,
+        bb->cfg->IR_reg_to_asm(params[0]),   // La condition
+        params[1],                           // Label du bloc "then"
+        params[2]);                          // Label du bloc "else"
+}
+
+
+void IRJump::gen_asm(std::ostream &o) {
+    codegenBackend->gen_jump(o, params[0]);
+}
+
+void IRComp::gen_asm(std::ostream &o) {
+    codegenBackend->gen_comp(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2]),
+        op);
+}

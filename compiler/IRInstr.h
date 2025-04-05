@@ -127,7 +127,32 @@ class IRAnd : public IRInstr {
             : IRInstr(bb, {dest, src1, src2}) {}
     
         void gen_asm(std::ostream &o) override;
-    };    
+    };   
+    
 
+class IRJumpCond : public IRInstr {
+    public:
+        IRJumpCond(BasicBlock *bb, const std::string &cond, const std::string &labelTrue, const std::string &labelFalse)
+            : IRInstr(bb, {cond, labelTrue, labelFalse}) {}
+        virtual void gen_asm(std::ostream &o) override;
+    };
+
+class IRJump : public IRInstr {
+    public:
+        
+        IRJump(BasicBlock *bb, const std::string &targetLabel)
+            : IRInstr(bb, {targetLabel}) {}
+        virtual void gen_asm(std::ostream &o) override;
+    };
+
+class IRComp : public IRInstr {
+    public:
+        // Le constructeur prend en plus une chaîne 'op' qui représente l'opérateur ("<", ">", ">=", "<=")
+        IRComp(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op)
+            : IRInstr(bb, {dest, src1, src2}), op(op) {}
+        virtual void gen_asm(std::ostream &o) override;
+    private:
+        std::string op;
+    };
 
 #endif
