@@ -1,7 +1,7 @@
 #include "IRInstr.h"
 #include "IR.h" 
 
-extern const CodeGenBackend* codegenBackend;
+extern CodeGenBackend* codegenBackend;
 
 std::vector<std::string> IRInstr::getParams(){
     return params;
@@ -55,6 +55,13 @@ void IRMod::gen_asm(std::ostream &o) {
         bb->cfg->IR_reg_to_asm(params[1]),
         bb->cfg->IR_reg_to_asm(params[2]));
 }
+
+void IRMovReg::gen_asm(std::ostream &o) {
+    // Pour IRMovReg, on déplace l'opérande src (après conversion) vers le registre dest
+    // Comme dest est déjà un registre (ex : "%edi"), on l'utilise tel quel.
+    o << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << params[0] << "\n";
+}
+
 
 void IRCall::gen_asm(std::ostream &o) {
     codegenBackend->gen_call(o, params[0]); // noms de fonctions = pas besoin d'offset
@@ -154,3 +161,25 @@ void IRJumpCond::gen_asm(std::ostream &o) {
         params[2]);                          // Label du bloc "else"
 }
 
+
+void IRComp::gen_asm(std::ostream &o) {
+    codegenBackend->gen_comp(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2]),
+        op);
+}
+
+void IRAndPar::gen_asm(std::ostream &o)  {
+    codegenBackend->gen_andPar(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2]));
+}
+
+void IROrPar::gen_asm(std::ostream &o)  {
+    codegenBackend->gen_orPar(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2]));
+}

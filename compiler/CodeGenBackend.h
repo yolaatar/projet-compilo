@@ -11,6 +11,8 @@
 class CodeGenBackend {
 public:
     virtual ~CodeGenBackend() {}
+    int labelCountFalse = 0;
+    int labelCountTrue =0;
 
     virtual void gen_prologue(std::ostream &os, std::string &name, int stackSize) const = 0;
     virtual void gen_epilogue(std::ostream &os) const = 0;
@@ -37,8 +39,14 @@ public:
 
 
     virtual void gen_jump_cond(std::ostream &os, const std::string &cond, const std::string &labelTrue, const std::string &labelFalse) const=0;
+    virtual void gen_andPar(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) = 0;
+    virtual void gen_orPar(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) = 0;
+    
+    
     virtual std::string getTempPrefix() const = 0;
     virtual std::string getArchitecture() const = 0;    
+
+    virtual void gen_comp(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op) const = 0;
 };
 
 #endif
