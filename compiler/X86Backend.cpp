@@ -62,7 +62,8 @@ void X86Backend::gen_not(std::ostream &os, const std::string &dest,
 
 void X86Backend::gen_egal(std::ostream &os, const std::string &dest,
                           const std::string &src1, const std::string &src2) const {
-    os << "    cmpl " << src2 << ", " << src1 << "\n";
+    os << "    movl " << src1 << ", %eax\n";
+    os << "    cmpl " << src2 << ", %eax\n";
     os << "    sete %al\n";
     os << "    movzbl %al, %eax\n";
     os << "    movl %eax, " << dest << "\n";
@@ -70,7 +71,8 @@ void X86Backend::gen_egal(std::ostream &os, const std::string &dest,
 
 void X86Backend::gen_notegal(std::ostream &os, const std::string &dest,
                              const std::string &src1, const std::string &src2) const {
-    os << "    cmpl " << src2 << ", " << src1 << "\n";
+    os << "    movl " << src1 << ", %eax\n";
+    os << "    cmpl " << src2 << ", %eax\n";
     os << "    setne %al\n";
     os << "    movzbl %al, %eax\n";
     os << "    movl %eax, " << dest << "\n";
@@ -127,4 +129,26 @@ void X86Backend::gen_and(std::ostream &os,
 
 std::string X86Backend::getTempPrefix() const {
     return "!tmp";
+}
+
+void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
+    const std::string &src1, const std::string &src2,
+    const std::string &op) const {
+    // Charger src1 dans %eax pour éviter de comparer deux adresses mémoire.
+    os << "    movl " << src1 << ", %eax\n";
+    // Comparer le contenu de %eax (src1) avec src2.
+    os << "    cmpl " << src2 << ", %eax\n";
+    // Choisir l'instruction set selon l'opérateur.
+    if (op == ">")
+        os << "    setg %al\n";
+    else if (op == "<")
+        os << "    setl %al\n";
+    else if (op == ">=")
+        os << "    setge %al\n";
+    else if (op == "<=")
+        os << "    setle %al\n";
+    else
+        os << "    ; opérateur de comparaison non supporté: " << op << "\n";
+        os << "    movzbl %al, %eax\n";
+        os << "    movl %eax, " << dest << "\n";
 }

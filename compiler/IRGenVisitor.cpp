@@ -24,7 +24,7 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext* ctx
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext* ctx)
 {
-    std::string varName = ctx->ID()->getText();
+    std::string varName = ctx->ID()->getText(); 
     BasicBlock *bb = cfg->current_bb;
     if(ctx->expr() != nullptr){
          std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
@@ -80,8 +80,19 @@ antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
 {
-    std::cerr << "visitCompExpr not implemented yet." << std::endl;
-    return std::string("0");
+    // Visiter la première sous-expression
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    // Visiter la deuxième sous-expression
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    // Créer une variable temporaire pour stocker le résultat de la comparaison
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+    
+    // Créer une instruction IRComp avec l'opérateur récupéré (par exemple, ">", "<", etc.)
+    auto instr = std::make_unique<IRComp>(bb, result, left, right, ctx->op->getText());
+    bb->add_IRInstr(std::move(instr));
+    
+    return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -122,6 +133,9 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext* ctx)
 
     for (auto instCtx : ctx->inst()) {
         this->visit(instCtx);
+        if (instCtx->getText().find("return") != std::string::npos) {
+            break; // On arrête de générer du code après le return.
+        }
     }
 
     return 0;
@@ -239,19 +253,35 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-
-    // Étape 1 : left && right <=> (left != 0) && (right != 0)
-    // Étape 2 : on génère une comparaison "!=" pour les deux
-    std::string condLeft = cfg->create_new_tempvar();
-    std::string condRight = cfg->create_new_tempvar();
-
-    // Génère : condLeft = (left != 0)
-    bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, condLeft, left, "0"));
-    // Génère : condRight = (right != 0)
-    bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, condRight, right, "0"));
-
-    // Génère : result = condLeft & condRight
-    bb->add_IRInstr(std::make_unique<IRAnd>(bb, result, condLeft, condRight));
-
+    auto instr = std::make_unique<IRAnd>(bb, result, left, right);
+    bb->add_IRInstr(std::move(instr));
     return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Traitement de l'appel de fonction
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext* ctx) {
+    std::string funcName = ctx->ID()->getText();
+    BasicBlock *bb = cfg->current_bb;
+    
+    // Si la fonction a des arguments (par exemple, pour putchar, il y en a un)
+    if (ctx->expr().size() > 0) {
+        // Pour simplifier, on considère ici le cas d'un seul argument.
+        std::string arg = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+        // Générer une instruction pour déplacer l'argument dans %edi (premier argument)
+        auto movInstr = std::make_unique<IRMovReg>(bb, "%edi", arg);
+        bb->add_IRInstr(std::move(movInstr));
+    }
+    
+    // Générer l'instruction d'appel de fonction
+    auto callInstr = std::make_unique<IRCall>(bb, funcName);
+    bb->add_IRInstr(std::move(callInstr));
+    
+    // Après l'appel, le résultat est dans %eax (selon la convention x86)
+    std::string temp = cfg->create_new_tempvar();
+    auto copyInstr = std::make_unique<IRCopy>(bb, temp, "%eax");
+    bb->add_IRInstr(std::move(copyInstr));
+    
+    return temp;
 }

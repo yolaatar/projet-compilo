@@ -79,6 +79,15 @@ class IRMod : public IRInstr {
         void gen_asm(std::ostream &o) override;
 };
 
+// Nouvelle instruction pour copier dans un registre (par exemple, pour mettre un argument dans %edi)
+class IRMovReg : public IRInstr {
+    public:
+        // Ici, dest sera un registre (par exemple "%edi") et src est l'opérande à déplacer
+        IRMovReg(BasicBlock *bb, const std::string &dest, const std::string &src)
+            : IRInstr(bb, {dest, src}) {}
+        virtual void gen_asm(std::ostream &o) override;
+};
+
 class IRCall : public IRInstr {
     public:
         IRCall(BasicBlock *bb, const std::string &func)
@@ -129,5 +138,14 @@ class IRAnd : public IRInstr {
         void gen_asm(std::ostream &o) override;
     };    
 
+class IRComp : public IRInstr {
+    public:
+        // Le constructeur prend en plus une chaîne 'op' qui représente l'opérateur ("<", ">", ">=", "<=")
+        IRComp(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op)
+            : IRInstr(bb, {dest, src1, src2}), op(op) {}
+        virtual void gen_asm(std::ostream &o) override;
+    private:
+        std::string op;
+    };
 
 #endif

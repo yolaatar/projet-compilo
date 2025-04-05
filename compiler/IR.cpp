@@ -56,13 +56,24 @@ void CFG::add_bb(BasicBlock* bb){
 }
 
 std::string CFG::IR_reg_to_asm(std::string name) {
-    if (stv.symbolTable.count(name)) {
+    // Si le nom commence par '%' c'est un registre, retourner tel quel
+    if (!name.empty() && name[0] == '%') {
+        return name;
+   }
+
+    // Vérifier si c'est une constante numérique
+    if (!name.empty() && (isdigit(name[0]) || (name[0] == '-' && name.size() > 1 && isdigit(name[1])))) {
+        return "$" + name;
+   }
+   
+   // Pour les variables (déclarées ou temporaires), chercher dans la table des symboles
+   if (stv.symbolTable.count(name)) {
         int offset = stv.symbolTable[name].offset;
         return std::to_string(offset) + "(%rbp)";
-    } 
+   } 
 
-    stv.writeError("Variable " + name + " non trouvée");
-    return "0(%rbp)"; 
+   stv.writeError("Variable " + name + " non trouvée");
+   return "0(%rbp)";
 }
 
 void CFG::gen_asm(std::ostream& o) {
