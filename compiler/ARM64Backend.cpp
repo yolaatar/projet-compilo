@@ -214,3 +214,37 @@ void ARM64Backend::gen_gt(std::ostream &os, const std::string &dest,
     os << "    cset x0, gt\n"; // Renvoie 1 si x0 > x1, sinon 0
     os << "    str x0, " << dest << "\n";
 }
+
+std::string makeLocalLabel(const std::string &label) {
+    if (!label.empty() && label[0] == '.') {
+        return label.substr(1);
+    }
+    return label;
+}
+
+
+
+// Génère un saut inconditionnel vers le label cible.
+void ARM64Backend::gen_jump(std::ostream &os, const std::string &target) const {
+    os << "    b " << target << "\n";
+}
+
+void ARM64Backend::gen_branch(std::ostream &os, const std::string &cond,
+                                const std::string &label_then, const std::string &label_else) const {
+    // On suppose que 'cond' est déjà dans un registre (par exemple, x0).
+    // On émet la branche conditionnelle en utilisant les labels locaux.
+    os << "    cbz x0, " << label_else << "\n";
+    os << "    b " << label_then << "\n";
+}
+
+void ARM64Backend::gen_jump_cond(std::ostream &os, const std::string &cond,
+                                 const std::string &labelTrue,
+                                 const std::string &labelFalse) const {
+    // Charger la valeur de 'cond' dans w0.
+    os << "    ldr w0, " << cond << "\n";
+    // Si w0 n'est pas zéro, branche vers labelTrue.
+    os << "    cbnz w0, " << labelTrue << "\n";
+    // Sinon, saute inconditionnellement vers labelFalse.
+    os << "    b " << labelFalse << "\n";
+}
+

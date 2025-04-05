@@ -28,6 +28,7 @@ void BasicBlock::gen_asm(std::ostream &o)
     }
 }
 
+
 void BasicBlock::add_IRInstr(std::unique_ptr<IRInstr> instr)
 {
     instrs.push_back(std::move(instr));
@@ -157,5 +158,5 @@ std::string CFG::create_new_tempvar()
 
 std::string CFG::new_BB_name()
 {
-    return "BB" + std::to_string(nextBBnumber++);
+    return ".BB" + std::to_string(nextBBnumber++);
 }

@@ -155,4 +155,28 @@ public:
         : IRInstr(bb, {dest}) {}
     void gen_asm(std::ostream &o) override;
 };
+
+
+class IRBranch : public IRInstr {
+public:
+    IRBranch(BasicBlock *bb, const std::string &cond, const std::string &thenLabel, const std::string &elseLabel)
+         : IRInstr(bb, {cond, thenLabel, elseLabel}) {}
+    void gen_asm(std::ostream &o) override;
+};
+
+class IRJumpCond : public IRInstr {
+    public:
+        IRJumpCond(BasicBlock *bb, const std::string &cond, const std::string &labelTrue, const std::string &labelFalse)
+            : IRInstr(bb, {cond, labelTrue, labelFalse}) {}
+        virtual void gen_asm(std::ostream &o) override;
+    };
+
+
+class IRJump : public IRInstr {
+public:
+    IRJump(BasicBlock *bb, const std::string &targetLabel)
+         : IRInstr(bb, {targetLabel}) {}
+    void gen_asm(std::ostream &o) override;
+};
+
 #endif

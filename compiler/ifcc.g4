@@ -4,6 +4,8 @@ axiom : prog* EOF ;
 
 prog : type ID '(' decl_params ')' '{' inst* '}' ;
 
+block : '{' inst* '}';
+
 decl_params : ( param (',' param)* )? ;
 param : 'int' ID ;
 
@@ -11,11 +13,16 @@ param : 'int' ID ;
 inst : declaration 
      | assignment 
      | return_stmt 
-     | function_call ';' ;
+     | function_call ';' 
+     | if_stmt 
+     | while_stmt
+     ;
 
 declaration : 'int' decl (',' decl)* ';' ;
 decl : ID ('=' expr)? ;
 assignment : ID '=' expr ';' ;
+if_stmt : 'if' '(' expr ')' block ('else' block)? ;
+while_stmt : 'while' '(' expr ')' block ;
 
 return_stmt : RETURN expr ';' ;
 

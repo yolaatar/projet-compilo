@@ -361,3 +361,58 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
     return result;
 }
 */
+
+///////////////////////////////////////////////////////////////////////////////
+//IF THEN ELSE
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+// Traitement du "if - else"
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
+{
+    // Conservez le bloc courant
+    BasicBlock* currentBB = cfg->current_bb;
+    
+    // 1. Évaluer la condition et obtenir son temporary
+    std::string condTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    
+    // 2. Créer les BasicBlocks pour la branche then et le bloc de fusion
+    BasicBlock* thenBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
+    
+    // 3. Si une clause else est présente, utilisez le bloc else correspondant, sinon créez-en un nouveau
+    BasicBlock* elseBB = nullptr;
+    if (ctx->block().size() > 1) {
+         elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+    } else {
+         elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+    }
+    
+    // 4. Dans le bloc courant, générer une instruction de branchement conditionnel avec IRJumpCond.
+    currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, elseBB->label));
+    
+    // 5. Générer le code pour la branche then.
+    cfg->add_bb(thenBB);
+    cfg->current_bb = thenBB;
+    this->visit(ctx->block(0)); // Traiter le bloc then
+    thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+    
+    // 6. Générer le code pour la branche else (si présente)
+    if (ctx->block().size() > 1) {
+         cfg->add_bb(elseBB);
+         cfg->current_bb = elseBB;
+         this->visit(ctx->block(1)); // Traiter le bloc else
+         elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
+    } else {
+         // Si la clause else n'est pas présente, il faut tout de même générer un bloc else qui saute vers mergeBB
+         cfg->add_bb(elseBB);
+         cfg->current_bb = elseBB;
+         elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
+    }
+    
+    // 7. Le bloc de fusion est la suite du programme.
+    cfg->add_bb(mergeBB);
+    cfg->current_bb = mergeBB;
+    
+    return std::string("");
+}

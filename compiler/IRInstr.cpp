@@ -129,3 +129,28 @@ void IRGetChar::gen_asm(std::ostream &o) {
     codegenBackend->gen_call(o, "getchar");
     codegenBackend->gen_copy(o, bb->cfg->IR_reg_to_asm(params[0]), "w0");
 }
+
+
+
+void IRJump::gen_asm(std::ostream &o) {
+    // On suppose que codegenBackend possède une méthode gen_jump qui prend le label cible
+    codegenBackend->gen_jump(o, params[0]);
+}
+
+void IRBranch::gen_asm(std::ostream &o) {
+    // On suppose que params[0] contient la condition, params[1] le label "then" et params[2] le label "else"
+    // Ici, les labels devraient déjà être locaux (commençant par un point)
+    codegenBackend->gen_branch(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        params[1],  // doit être ".BBX"
+        params[2]   // doit être ".BBY"
+    );
+}
+
+void IRJumpCond::gen_asm(std::ostream &o) {
+    codegenBackend->gen_jump_cond(o,
+        bb->cfg->IR_reg_to_asm(params[0]),   // La condition
+        params[1],                           // Label du bloc "then"
+        params[2]);                          // Label du bloc "else"
+}
+
