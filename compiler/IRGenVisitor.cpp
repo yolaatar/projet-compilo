@@ -435,3 +435,33 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
     
     return std::string("");
 }
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Traitement de l'opérateur logique "&&"
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
+{
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+    auto instr = std::make_unique<IRAndPar>(bb, result, left, right);
+    bb->add_IRInstr(std::move(instr));
+    return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Traitement de l'opérateur logique "||"
+///////////////////////////////////////////////////////////////////////////////
+antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
+{
+    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+    auto instr = std::make_unique<IROrPar>(bb, result, left, right);
+    bb->add_IRInstr(std::move(instr));
+    return result;
+}

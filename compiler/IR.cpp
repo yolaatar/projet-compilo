@@ -156,7 +156,7 @@ std::string CFG::create_new_tempvar()
     return stv.createNewTemp();
 }
 
-std::string CFG::new_BB_name()
-{
-    return ".BB" + std::to_string(nextBBnumber++);
+std::string CFG::new_BB_name() {
+    return ".LBB" + std::to_string(nextBBnumber++);
 }
+
