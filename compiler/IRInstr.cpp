@@ -161,30 +161,17 @@ void IRJumpCond::gen_asm(std::ostream &o) {
         params[2]);                          // Label du bloc "else"
 }
 
-void IRAndPar::gen_asm(std::ostream &o)  {
-    codegenBackend->gen_andPar(o,
-        bb->cfg->IR_reg_to_asm(params[0]),
-        bb->cfg->IR_reg_to_asm(params[1]),
-        bb->cfg->IR_reg_to_asm(params[2]));
-}
 
-void IRComp::gen_asm(std::ostream &o) {
-    codegenBackend->gen_comp(o,
-        bb->cfg->IR_reg_to_asm(params[0]),
-        bb->cfg->IR_reg_to_asm(params[1]),
-        bb->cfg->IR_reg_to_asm(params[2]),
-        op);
-}
-
-void IRAndPar::gen_asm(std::ostream &o)  {
-    codegenBackend->gen_andPar(o,
-        bb->cfg->IR_reg_to_asm(params[0]),
-        bb->cfg->IR_reg_to_asm(params[1]),
-        bb->cfg->IR_reg_to_asm(params[2]));
-}
 
 void IROrPar::gen_asm(std::ostream &o)  {
     codegenBackend->gen_orPar(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2]));
+}
+
+void IRAndPar::gen_asm(std::ostream &o)  {
+    codegenBackend->gen_andPar(o,
         bb->cfg->IR_reg_to_asm(params[0]),
         bb->cfg->IR_reg_to_asm(params[1]),
         bb->cfg->IR_reg_to_asm(params[2]));
