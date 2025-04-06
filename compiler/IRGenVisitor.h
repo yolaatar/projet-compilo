@@ -14,6 +14,7 @@ class  IRGenVisitor : public ifccBaseVisitor {
         bool hasReturned = false; // Indique si une instruction de retour a été rencontrée
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
+        virtual antlrcpp::Any visitAxiom(ifccParser::AxiomContext *ctx) override ;
         virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
         virtual antlrcpp::Any visitMoinsExpr(ifccParser::MoinsExprContext *ctx) override;
         virtual antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override;
