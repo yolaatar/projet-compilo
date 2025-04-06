@@ -3,8 +3,13 @@
 #include <cctype>
 
 void ARM64Backend::gen_return(std::ostream &os, const std::string &src) const {
-    os << "    ldr w0, " << src << "\n";
+    if (src.find('[') != std::string::npos) {
+        os << "    ldr w0, " << src << "\n";
+    } else {
+        os << "    mov w0, " << src << "\n";
+    }
 }
+
 
 void ARM64Backend::gen_mov(std::ostream &os, const std::string &dest, const std::string &src) const {
     // Adjust dest if it’s x86-style or a plain offset
@@ -144,21 +149,33 @@ void ARM64Backend::gen_epilogue(std::ostream &os) const {
 
 
 void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest,
-                            const std::string &src) const {
+                             const std::string &src) const {
     bool srcIsMem = src.find('[') != std::string::npos;
     bool destIsMem = dest.find('[') != std::string::npos;
+
+    bool srcIsReg = src[0] == 'x' || src[0] == 'w';
+    bool destIsReg = dest[0] == 'x' || dest[0] == 'w';
 
     if (srcIsMem && destIsMem) {
         os << "    ldr w0, " << src << "\n";
         os << "    str w0, " << dest << "\n";
-    } else if (srcIsMem && !destIsMem) {
+    }
+    else if (srcIsMem && destIsReg) {
         os << "    ldr " << dest << ", " << src << "\n";
-    } else if (!srcIsMem && destIsMem) {
+    }
+    else if (srcIsReg && destIsMem) {
         os << "    str " << src << ", " << dest << "\n";
-    } else { // register to register
+    }
+    else if (srcIsReg && destIsReg) {
         os << "    mov " << dest << ", " << src << "\n";
     }
+    else {
+        // fallback sécurisé
+        os << "    ldr w0, " << src << "\n";
+        os << "    str w0, " << dest << "\n";
+    }
 }
+
 
 
 void ARM64Backend::gen_and(std::ostream &os,

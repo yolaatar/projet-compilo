@@ -23,7 +23,7 @@ assignment : ID '=' expr ';' ;
 if_stmt : 'if' '(' expr ')' block ('else' block)? ;
 while_stmt : 'while' '(' expr ')' block ;
 
-return_stmt : 'return' expr ';' ;
+return_stmt : 'return' expr? ';' ;
 
 type : 'int' | 'void' ;
 

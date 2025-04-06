@@ -52,13 +52,38 @@ antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx){
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx){
-    visitChildren(ctx);
+antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
+    // Réinitialise la table des symboles pour chaque fonction
+    symbolTable.clear();
+    offset = INTSIZE;
 
-    checkSymbolTable();
+    // Ajoute les paramètres dans la table des symboles
+    if (ctx->decl_params()) {
+        for (auto param : ctx->decl_params()->param()) {
+            std::string paramName = param->ID()->getText();
+            addToSymbolTable(paramName);
+            symbolTable[paramName].initialised = true; // un paramètre est toujours initialisé
+        }
+    }
+
+    // Visite les instructions du corps
+    for (auto inst : ctx->inst()) {
+        visit(inst);
+    }
 
     return 0;
 }
+
+
+antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx){
+    if (ctx->expr()) {
+        visit(ctx->expr());
+    }
+
+    checkSymbolTable();
+    return 0;
+}
+
 
 void SymbolTableVisitor::addToSymbolTable(std::string s){
     if(symbolTable.find(s) != symbolTable.end()){

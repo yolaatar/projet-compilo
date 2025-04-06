@@ -76,35 +76,39 @@ static bool isNumber(const std::string &s)
     return true;
 }
 
-// IR.cpp
 std::string CFG::IR_reg_to_asm(std::string name)
 {
-    if (isNumber(name))
-        return "#" + name;
-
     if (!codegenBackend)
     {
         stv.writeError("Codegen backend not initialized!");
         return "0";
     }
 
+    // Bypass if it's a known ARM64 register
+    if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && isdigit(name[1])) {
+        return name;  // C’est déjà un registre
+    }
+
+    // Vérifie que la variable est bien dans la symbol table
     if (stv.symbolTable.count(name))
     {
         int offset = stv.symbolTable[name].offset;
 
         if (codegenBackend->getArchitecture() == "arm64")
         {
-            return "[x29, #" + std::to_string(offset) + "]";
+            return "[x29, #" + std::to_string(offset) + "]"; // ARM64 = offset par rapport à x29
         }
         else
-        {                                             // x86
-            return std::to_string(offset) + "(%rbp)"; // X86: negative offset
+        {
+            return std::to_string(offset) + "(%rbp)"; // x86
         }
     }
 
+    // Variable inconnue
     stv.writeError("Variable " + name + " non trouvée");
-    return (codegenBackend->getArchitecture() == "arm64") ? "[sp, #0]" : "0(%rbp)";
+    return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
 }
+
 
 void CFG::gen_asm(std::ostream &o)
 {
