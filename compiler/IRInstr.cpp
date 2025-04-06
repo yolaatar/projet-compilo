@@ -109,6 +109,7 @@ void IRAnd::gen_asm(std::ostream &o)  {
 }
 
 
+
 void IRGt::gen_asm(std::ostream &o) {
     // Utilise la méthode gen_gt du backend pour générer l'assembleur
     codegenBackend->gen_gt(o,
@@ -125,6 +126,24 @@ void IRGe::gen_asm(std::ostream &o) {
         bb->cfg->IR_reg_to_asm(params[2])
     );
 }
+
+void IRCompInf::gen_asm(std::ostream &o) {
+    // Utilise la méthode gen_gt du backend pour générer l'assembleur
+    codegenBackend->gen_gcompinf(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2])
+    );
+}
+
+void IRCompInfEg::gen_asm(std::ostream &o) {
+    codegenBackend->gen_gcompinfeg(o,
+        bb->cfg->IR_reg_to_asm(params[0]),
+        bb->cfg->IR_reg_to_asm(params[1]),
+        bb->cfg->IR_reg_to_asm(params[2])
+    );
+}
+
 
 void IRPutChar::gen_asm(std::ostream &o) {
     codegenBackend->gen_copy(o, "w0", bb->cfg->IR_reg_to_asm(params[0]));

@@ -43,6 +43,8 @@ public:
 
     virtual void gen_andPar(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) override;
     virtual void gen_orPar(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) override;
+    virtual void gen_gcompinf(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const;
+    virtual void gen_gcompinfeg(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const;
 
 };
 #endif

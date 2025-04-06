@@ -110,6 +110,14 @@ antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext *ctx)
     {
         bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, result, left, right));
     }
+    else if (op == "<=")
+    {
+        bb->add_IRInstr(std::make_unique<IRCompInfEg>(bb, result, left, right));
+    }
+    else if (op == "<")
+    {
+        bb->add_IRInstr(std::make_unique<IRCompInf>(bb, result, left, right));
+    }
     else
     {
         std::cerr << "Opérateur de comparaison non implémenté: " << op << "\n";
@@ -464,4 +472,35 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
     auto instr = std::make_unique<IROrPar>(bb, result, left, right);
     bb->add_IRInstr(std::move(instr));
     return result;
+}
+
+
+antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx) {
+    // 1. Création des BasicBlocks nécessaires
+    BasicBlock* condBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock* afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+
+    // 2. Saut immédiat vers le bloc condition depuis le bloc actuel
+    cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, condBB->label));
+
+    // 3. Bloc de la condition
+    cfg->add_bb(condBB);
+    cfg->current_bb = condBB;
+
+    std::string condTemp = std::any_cast<std::string>(visit(ctx->expr()));
+    condBB->add_IRInstr(std::make_unique<IRJumpCond>(condBB, condTemp, bodyBB->label, afterBB->label));
+
+    // 4. Bloc du corps de la boucle
+    cfg->add_bb(bodyBB);
+    cfg->current_bb = bodyBB;
+    visit(ctx->block()); // Corps du while
+
+    bodyBB->add_IRInstr(std::make_unique<IRJump>(bodyBB, condBB->label)); // Retour à la condition
+
+    // 5. Bloc de sortie
+    cfg->add_bb(afterBB);
+    cfg->current_bb = afterBB;
+
+    return nullptr;
 }

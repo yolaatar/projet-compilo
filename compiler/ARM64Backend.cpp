@@ -214,6 +214,24 @@ void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest,
     os << "    str w0, " << dest << "\n";
 }
 
+void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest,
+                                 const std::string &src1, const std::string &src2) const {
+    os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
+    os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1
+    os << "    cmp w0, w1\n";              // Comparer w0 et w1
+    os << "    cset w0, lt\n";             // Mettre 1 dans w0 si w0 < w1, sinon 0
+    os << "    str w0, " << dest << "\n";  // Stocker le résultat dans dest
+}
+
+void ARM64Backend::gen_gcompinfeg(std::ostream &os, const std::string &dest,
+                                   const std::string &src1, const std::string &src2) const {
+
+    os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
+    os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1
+    os << "    cmp w0, w1\n";              // Comparer w0 et w1
+    os << "    cset w0, le\n";             // Mettre 1 dans w0 si w0 <= w1, sinon 0
+    os << "    str w0, " << dest << "\n";  // Stocker le résultat dans dest
+}
 
 std::string makeLocalLabel(const std::string &label) {
     if (!label.empty() && label[0] == '.') {
@@ -240,13 +258,12 @@ void ARM64Backend::gen_branch(std::ostream &os, const std::string &cond,
 void ARM64Backend::gen_jump_cond(std::ostream &os, const std::string &cond,
                                  const std::string &labelTrue,
                                  const std::string &labelFalse) const {
-    // Charger la valeur de 'cond' dans w0.
     os << "    ldr w0, " << cond << "\n";
-    // Si w0 n'est pas zéro, branche vers labelTrue.
     os << "    cbnz w0, " << labelTrue << "\n";
-    // Sinon, saute inconditionnellement vers labelFalse.
     os << "    b " << labelFalse << "\n";
 }
+
+
 void ARM64Backend::gen_andPar(std::ostream &os,
     const std::string &dest,
     const std::string &src1,
