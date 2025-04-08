@@ -13,7 +13,7 @@
 #include "IRInstr.h"
 
 /// On déclare un pointeur global (ou mieux, un singleton ou une instance dans le CFG) pour le backend.
-extern CodeGenBackend* codegenBackend;
+extern const CodeGenBackend* codegenBackend;
 
 class BasicBlock;
 class CFG; 
@@ -46,6 +46,7 @@ public:
 
     BasicBlock* exit_true;
     BasicBlock* exit_false;
+    std::string cond_var; 
     std::string label;
     CFG* cfg;
     std::vector<std::unique_ptr<IRInstr>> instrs;

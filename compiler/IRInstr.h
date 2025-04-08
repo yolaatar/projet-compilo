@@ -148,20 +148,5 @@ class IRComp : public IRInstr {
         std::string op;
     };
 
-class IRAndPar : public IRInstr {
-    public:
-        IRAndPar(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
-            : IRInstr(bb, {dest, src1, src2}) {}
-    
-        void gen_asm(std::ostream &o) override;
-    };
-
-class IROrPar : public IRInstr {
-    public:
-        IROrPar(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
-            : IRInstr(bb, {dest, src1, src2}) {}
-    
-        void gen_asm(std::ostream &o) override;
-    };
 
 #endif

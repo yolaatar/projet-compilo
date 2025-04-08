@@ -261,30 +261,92 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur logique "&&"
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
-{
+// antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
+// {
+//     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+//     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+//     std::string result = cfg->create_new_tempvar();
+//     BasicBlock *bb = cfg->current_bb;
+//     auto instr = std::make_unique<IRAndPar>(bb, result, left, right);
+//     bb->add_IRInstr(std::move(instr));
+//     return result;
+// }
+
+antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx) {
+    std::string result = cfg->create_new_tempvar(); // variable finale
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    std::string result = cfg->create_new_tempvar();
+    std::string zero = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRAndPar>(bb, result, left, right);
-    bb->add_IRInstr(std::move(instr));
+    bb->add_IRInstr(std::make_unique<IRLdConst>(bb, zero, "0"));
+    // Création des blocs
+    BasicBlock* evalRight = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock* end = new BasicBlock(cfg, cfg->new_BB_name());
+    // Générer un saut conditionnel
+    bb->exit_true = evalRight;
+    bb->exit_false = end;
+    bb->cond_var = left;
+    // Compléter le bloc de droite
+    cfg->add_bb(evalRight);
+    cfg->current_bb = evalRight;
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
+    //evalRight->exit_true = end;
+    // Bloc de fin
+    cfg->add_bb(end);
+    cfg->current_bb = end;
+    auto setFalse = std::make_unique<IRCopy>(end, result, zero);
+    end->add_IRInstr(std::move(setFalse));
     return result;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur logique "||"
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
-{
+// antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
+// {
+//     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+//     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+//     std::string result = cfg->create_new_tempvar();
+//     BasicBlock *bb = cfg->current_bb;
+//     auto instr = std::make_unique<IROrPar>(bb, result, left, right);
+//     bb->add_IRInstr(std::move(instr));
+//     return result;
+// }
+
+antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx) {
+    std::string result = cfg->create_new_tempvar(); // variable finale
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    std::string result = cfg->create_new_tempvar();
+    std::string one = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IROrPar>(bb, result, left, right);
-    bb->add_IRInstr(std::move(instr));
+    bb->add_IRInstr(std::make_unique<IRLdConst>(bb, one, "1"));
+    
+    // Création des blocs
+    BasicBlock* evalRight = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock* end = new BasicBlock(cfg, cfg->new_BB_name());
+    
+    // Générer un saut conditionnel pour "left"
+    bb->exit_true = end;      // Si "left" est vrai, on va directement à la fin
+    bb->exit_false = evalRight;  // Sinon, on évalue l'expression "right"
+    bb->cond_var = left;      // La condition de gauche est stockée dans "cond_var"
+    
+    // Compléter le bloc de droite
+    cfg->add_bb(evalRight);
+    cfg->current_bb = evalRight;
+    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right)); // Résultat est à droite
+    //evalRight->exit_true = end;
+    
+    // Bloc de fin (si l'une des deux expressions est "vraie", résultat = 1)
+    cfg->add_bb(end);
+    cfg->current_bb = end;
+    auto setFalse = std::make_unique<IRCopy>(end, result, one); // Par défaut, mettre 1
+    end->add_IRInstr(std::move(setFalse));
+    
     return result;
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'appel de fonction
