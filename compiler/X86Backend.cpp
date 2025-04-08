@@ -98,11 +98,11 @@ void X86Backend::gen_call(std::ostream &os, const std::string &func) const {
     os << "    call " << func << "\n";
 }
 
-void X86Backend::gen_prologue(std::ostream &os, std::string &name) const {
+void X86Backend::gen_prologue(std::ostream &os, std::string &name, int Stacksize) const {
     os << ".globl " << name << "\n";
     os << name << ":\n";
     os << "    pushq %rbp\n";
-    os << "    movq %rsp, %rbp\n";
+    os << "    movq %rsp, %rbp\n";  
 }
 
 void X86Backend::gen_epilogue(std::ostream &os) const {
@@ -162,6 +162,10 @@ std::string X86Backend::getTempPrefix() const {
     return "!tmp";
 }
 
+std::string X86Backend::getArchitecture() const {
+    return "X86";
+}
+
 void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
     const std::string &src1, const std::string &src2,
     const std::string &op) const {
@@ -182,4 +186,16 @@ void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
         os << "    ; opérateur de comparaison non supporté: " << op << "\n";
         os << "    movzbl %al, %eax\n";
         os << "    movl %eax, " << dest << "\n";
+}
+
+void X86Backend::gen_jump_cond(std::ostream &os, const std::string &cond,const std::string &labelTrue,const std::string &labelFalse) const {
+    std::cerr << "[X86Backend] gen_jump_cond not implemented\n";
+}
+
+void X86Backend::gen_branch(std::ostream &os, const std::string &cond, const std::string &label_then, const std::string &label_else) const {
+    std::cerr << "[X86Backend] gen_branch not implemented\n";
+}
+
+void X86Backend::gen_jump(std::ostream &os, const std::string &target) const {
+    std::cerr << "[X86Backend] gen_jump not implemented\n";
 }
