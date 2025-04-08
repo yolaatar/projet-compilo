@@ -225,6 +225,30 @@ std::string ARM64Backend::loadOperand(const std::string &operand, const std::str
 //     os << "    str w0, " << dest << "\n";
 // }
 
+void ARM64Backend::gen_comp(std::ostream &os, const std::string &dest,
+                             const std::string &src1, const std::string &src2,
+                             const std::string &op) const {
+    os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
+    os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1
+    os << "    cmp w0, w1\n";              // Comparaison
+
+    if (op == ">")
+        os << "    cset w0, gt\n"; // w0 = 1 si w0 > w1
+    else if (op == "<")
+        os << "    cset w0, lt\n"; // w0 = 1 si w0 < w1
+    else if (op == ">=")
+        os << "    cset w0, ge\n"; // w0 = 1 si w0 >= w1
+    else if (op == "<=")
+        os << "    cset w0, le\n"; // w0 = 1 si w0 <= w1
+    else {
+        os << "    ; opérateur de comparaison non supporté: " << op << "\n";
+        return;
+    }
+
+    os << "    str w0, " << dest << "\n";  // Stocker le résultat dans dest
+}
+
+
 void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
     os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1

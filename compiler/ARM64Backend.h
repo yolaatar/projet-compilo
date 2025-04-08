@@ -42,7 +42,7 @@ public:
     virtual void gen_gcompinf(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const;
     virtual void gen_gcompinfeg(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const;
 
-    virtual void gen_comp(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op) const = 0;
+    virtual void gen_comp(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op) const;
 
 };
 #endif
