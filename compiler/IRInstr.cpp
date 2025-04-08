@@ -166,15 +166,45 @@ void IRComp::gen_asm(std::ostream &o) {
 
 void IRPutChar::gen_asm(std::ostream &o)
 {
-    codegenBackend->gen_copy(o, "w0", bb->cfg->IR_reg_to_asm(params[0]));
+    std::string architecture = codegenBackend->getArchitecture();
+    std::string reg = "";
+
+    if (architecture == "arm64") {
+        reg = "w0";
+    } else if (architecture == "X86") {
+        reg = "%edi"; // 1er argument
+    }
+
+    if (reg.empty()) {
+        std::cerr << "[ERROR] Architecture inconnue\n";
+        exit(-1);
+    }
+
+    codegenBackend->gen_copy(o, reg, bb->cfg->IR_reg_to_asm(params[0]));
     codegenBackend->gen_call(o, "putchar");
 }
 
 void IRGetChar::gen_asm(std::ostream &o)
 {
     codegenBackend->gen_call(o, "getchar");
-    codegenBackend->gen_copy(o, bb->cfg->IR_reg_to_asm(params[0]), "w0");
+
+    std::string architecture = codegenBackend->getArchitecture();
+    std::string reg = "";
+
+    if (architecture == "arm64") {
+        reg = "w0";
+    } else if (architecture == "X86") {
+        reg = "%eax"; // ✅ valeur de retour
+    }
+
+    if (reg.empty()) {
+        std::cerr << "[ERROR] Architecture inconnue\n";
+        exit(-1);
+    }
+
+    codegenBackend->gen_copy(o, bb->cfg->IR_reg_to_asm(params[0]), reg);
 }
+
 
 void IRJump::gen_asm(std::ostream &o)
 {
