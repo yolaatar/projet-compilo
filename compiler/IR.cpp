@@ -92,22 +92,16 @@ std::string CFG::IR_reg_to_asm(std::string name)
         return name;  // C’est déjà un registre
     }
 
-    // Vérifie que la variable est bien dans la symbol table
-    if (stv.symbolTable.count(name))
-    {
-        int offset = stv.symbolTable[name].offset;
-
-        if (codegenBackend->getArchitecture() == "arm64")
-        {
-            return "[x29, #" + std::to_string(offset) + "]"; // ARM64 = offset par rapport à x29
-        }
-        else
-        {
-            return std::to_string(offset) + "(%rbp)"; // x86
+ for (auto it = stv.symbolStack.rbegin(); it != stv.symbolStack.rend(); ++it) {
+        if (it->find(name) != it->end()) {
+            int offset = (*it)[name].offset;
+            if (codegenBackend->getArchitecture() == "arm64")
+                return "[x29, #" + std::to_string(offset) + "]";
+            else
+                return std::to_string(offset) + "(%rbp)";
         }
     }
 
-    // Variable inconnue
     stv.writeError("Variable " + name + " non trouvée");
     return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
 }

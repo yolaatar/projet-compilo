@@ -37,7 +37,7 @@ public:
 
     
 
-    virtual void gen_comp(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op) const = 0;
+    virtual void gen_comp(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op) const;
 
 };
 #endif

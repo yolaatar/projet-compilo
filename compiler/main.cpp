@@ -51,12 +51,14 @@ int main(int argn, const char **argv)
   }
 
   ifccParser::AxiomContext *axiom = dynamic_cast<ifccParser::AxiomContext *>(tree);
+  std::map<std::string, FunctionSignature> functionTable;
 
   for (auto prog : axiom->prog())
   {
     std::string fname = prog->ID()->getText();
 
     SymbolTableVisitor stv;
+    stv.functionTable = &functionTable;
     stv.visit(prog);
 
     if (stv.error == 0)
@@ -65,11 +67,14 @@ int main(int argn, const char **argv)
       CFG cfg(&defFunc, stv);
       IRGenVisitor cgv;
       cgv.cfg = &cfg;
+      cgv.functionTable = stv.functionTable;
+      (*cgv.functionTable)["putchar"] = FunctionSignature{"int", {"int"}};
+      (*cgv.functionTable)["getchar"] = FunctionSignature{"int", {}};
       cgv.visit(prog);
 
       std::cerr << "Function: " << fname << "\n";
-      stv.print_symbol_table();
-      cfg.current_bb->print_instrs();
+      // stv.print_symbol_table();
+      // cfg.current_bb->print_instrs();
       cfg.gen_asm(std::cout);
     }
   }

@@ -2,9 +2,9 @@ grammar ifcc;
 
 axiom : prog* EOF ;
 
-prog : type ID '(' decl_params ')' '{' inst* '}' ;
+prog : type ID '(' decl_params ')' '{' (decl | inst)* '}' ;
 
-block : '{' inst* '}' ;
+block : '{' (decl | inst)* '}' ;
 
 decl_params : ( param (',' param)* )? ;
 param : 'int' ID ;
@@ -15,6 +15,7 @@ inst : declaration
      | function_call ';' 
      | if_stmt 
      | while_stmt
+     | block
      ;
 
 declaration : 'int' decl (',' decl)* ';' ;
