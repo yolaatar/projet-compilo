@@ -32,6 +32,8 @@ expr
     | expr '&' expr                      # EtLogExpr
     | expr '^' expr                      # OuExcExpr
     | expr '|' expr                      # OuIncExpr
+    | expr '&&' expr                     # EtParExpr
+    | expr '||' expr                     # OuParExpr
     | function_call                      # FuncCallExpr 
     | ID                                 # IdExpr
     | CONST                              # ConstExpr
