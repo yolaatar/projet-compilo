@@ -157,14 +157,6 @@ void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
         os << "    movl %eax, " << dest << "\n";
 }
 
-void X86Backend::gen_jump_cond(std::ostream &os, const std::string &cond,const std::string &labelTrue,const std::string &labelFalse) const {
-    std::cerr << "[X86Backend] gen_jump_cond not implemented\n";
-}
-
 void X86Backend::gen_branch(std::ostream &os, const std::string &cond, const std::string &label_then, const std::string &label_else) const {
     std::cerr << "[X86Backend] gen_branch not implemented\n";
-}
-
-void X86Backend::gen_jump(std::ostream &os, const std::string &target) const {
-    std::cerr << "[X86Backend] gen_jump not implemented\n";
 }

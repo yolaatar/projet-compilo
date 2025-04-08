@@ -98,7 +98,6 @@ antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
     return result;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Expression multiplicative (*, /, %)
 ///////////////////////////////////////////////////////////////////////////////
@@ -389,39 +388,50 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "if - else"
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
+antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
 {
+    
+    // Conserver le bloc courant
     BasicBlock* currentBB = cfg->current_bb;
-    std::string condTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    
+    // 1. Évaluer la condition et obtenir son temporary
+    currentBB->test_var_name = std::any_cast<std::string>(this->visit(ctx->expr()));
+    
+    // 2. Créer les BasicBlocks pour la branche then, la branche else et le bloc de fusion (merge) pour cet if
     BasicBlock* thenBB = new BasicBlock(cfg, cfg->new_BB_name());
+    thenBB->label += "_then";
+    BasicBlock* elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+    elseBB->label += "_else";
     BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
+    mergeBB->label += "_merge";
 
+    mergeBB->exit_true = currentBB->exit_true;
+    mergeBB->exit_false = currentBB->exit_false;
+
+    currentBB->exit_true = thenBB;
+    currentBB->exit_false = elseBB;
+
+    thenBB->exit_true = mergeBB;
+    elseBB->exit_false = mergeBB;
+
+    cfg->current_bb = thenBB;
+    
+    // 4. Générer le code pour la branche then.
+    cfg->add_bb(thenBB);  
+    this->visit(ctx->block(0));  // Traiter le bloc then
+    
+    // 5. Générer le code pour la branche else.
+    cfg->add_bb(elseBB);
+    cfg->current_bb = elseBB;
     if (ctx->block().size() > 1) {
-         BasicBlock* elseBB = new BasicBlock(cfg, cfg->new_BB_name());
-         currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, elseBB->label));
-
-         cfg->add_bb(thenBB);
-         cfg->current_bb = thenBB;
-         this->visit(ctx->block(0));
-         thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
-
-         cfg->add_bb(elseBB);
-         cfg->current_bb = elseBB;
-         this->visit(ctx->block(1));
-         elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
-    } else {
-         // Si pas de clause else, le faux chemin va directement dans mergeBB.
-         currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, mergeBB->label));
-         cfg->add_bb(thenBB);
-         cfg->current_bb = thenBB;
-         this->visit(ctx->block(0));
-         thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+        this->visit(ctx->block(1)); // Traiter le bloc else s'il existe
     }
     
+    // 6. Ajouter le bloc de fusion et le définir comme bloc courant
     cfg->add_bb(mergeBB);
     cfg->current_bb = mergeBB;
-
-    return std::string("");
+    
+    return std::string("0");
 }
 
 
@@ -441,7 +451,6 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
     // Générer un saut conditionnel
     bb->exit_true = evalRight;
     bb->exit_false = end;
-    bb->cond_var = left;
     // Compléter le bloc de droite
     cfg->add_bb(evalRight);
     cfg->current_bb = evalRight;
@@ -458,8 +467,9 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// Traitement de l'opérateur logique "||"
+// Traitement du "while"
 ///////////////////////////////////////////////////////////////////////////////
+
 antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
 {
     std::string result = cfg->create_new_tempvar();
@@ -475,7 +485,6 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
     // Générer un saut conditionnel pour "left"
     bb->exit_true = end;      // Si "left" est vrai, on va directement à la fin
     bb->exit_false = evalRight;  // Sinon, on évalue l'expression "right"
-    bb->cond_var = left;      // La condition de gauche est stockée dans "cond_var"
     
     // Compléter le bloc de droite
     cfg->add_bb(evalRight);
@@ -493,37 +502,38 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
     return result;
 }
 
+antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx)
+{
+    BasicBlock* currentBB = cfg->current_bb;
 
-antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx) {
-    // 1. Création des BasicBlocks nécessaires
-    BasicBlock* condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock* condBB = new BasicBlock(cfg, cfg->new_BB_name()); 
+    condBB->label += "_cond";
+    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->new_BB_name()); 
+    bodyBB->label += "_body";
+    BasicBlock* exitBB = new BasicBlock(cfg, cfg->new_BB_name());  
+    exitBB->label += "_exit";
 
-    // 2. Saut immédiat vers le bloc condition depuis le bloc actuel
-    cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, condBB->label));
+    exitBB->exit_true = currentBB->exit_true;
+    exitBB->exit_false = currentBB->exit_false;
 
-    // 3. Bloc de la condition
+    currentBB->exit_true = condBB;
+    
+    condBB->exit_false = exitBB;
+    condBB->exit_true = bodyBB;
+    bodyBB->exit_true = condBB;
+
     cfg->add_bb(condBB);
     cfg->current_bb = condBB;
-
-    std::string condTemp = std::any_cast<std::string>(visit(ctx->expr()));
-    condBB->add_IRInstr(std::make_unique<IRJumpCond>(condBB, condTemp, bodyBB->label, afterBB->label));
-
-    // 4. Bloc du corps de la boucle
+    std::string cond = std::any_cast<std::string>(this->visit(ctx->expr()));
+    condBB->test_var_name = cond;
+    
     cfg->add_bb(bodyBB);
     cfg->current_bb = bodyBB;
-    visit(ctx->block()); // Corps du while
-
-    bodyBB->add_IRInstr(std::make_unique<IRJump>(bodyBB, condBB->label)); // Retour à la condition
-
-    // 5. Bloc de sortie
-    cfg->add_bb(afterBB);
-    cfg->current_bb = afterBB;
-
-    return nullptr;
+    this->visit(ctx->block());
+    
+    cfg->add_bb(exitBB);
+    cfg->current_bb = exitBB;
+    
+    return std::string("0");
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Shadowing et portée
-///////////////////////////////////////////////////////////////////////////////

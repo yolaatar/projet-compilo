@@ -28,7 +28,15 @@ void BasicBlock::gen_asm(std::ostream &o)
     for (auto &instr : instrs)
     {
         instr->gen_asm(o);
-    }
+    } // ajouter les sauts
+    if (exit_true != nullptr && exit_false != nullptr){
+        o << "    movl " << cfg->IR_reg_to_asm(test_var_name) << ", %eax\n";
+        o << "    cmpl $0, %eax\n";
+        o << "    jne " << exit_true->label << "\n";
+        o << "    jmp " << exit_false->label << "\n";
+    } else if  (exit_true != nullptr && exit_false == nullptr) {
+        o << "    jmp " << exit_true->label << "\n";
+    } 
 }
 
 

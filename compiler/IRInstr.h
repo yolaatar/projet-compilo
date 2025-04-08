@@ -186,13 +186,6 @@ public:
     void gen_asm(std::ostream &o) override;
 };
 
-class IRJumpCond : public IRInstr
-{
-public:
-    IRJumpCond(BasicBlock *bb, const std::string &cond, const std::string &labelTrue, const std::string &labelFalse)
-        : IRInstr(bb, {cond, labelTrue, labelFalse}) {}
-    virtual void gen_asm(std::ostream &o) override;
-};
 
 class IRComp : public IRInstr
 {
@@ -204,14 +197,6 @@ public:
 
 private:
     std::string op;
-};
-
-class IRJump : public IRInstr
-{
-public:
-    IRJump(BasicBlock *bb, const std::string &targetLabel)
-        : IRInstr(bb, {targetLabel}) {}
-    void gen_asm(std::ostream &o) override;
 };
 
 class IRAndPar : public IRInstr

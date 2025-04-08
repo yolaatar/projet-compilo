@@ -13,6 +13,7 @@ class  IRGenVisitor : public ifccBaseVisitor {
         CodeGenBackend *backend; // Backend pour la génération de code
         std::map<std::string, FunctionSignature>* functionTable = nullptr;
         bool hasReturned = false; // Indique si une instruction de retour a été rencontrée
+        SymbolTableVisitor stv;
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
         virtual antlrcpp::Any visitAxiom(ifccParser::AxiomContext *ctx) override ;
