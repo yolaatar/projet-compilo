@@ -81,50 +81,23 @@ antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx)
     return result;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Comparaisons binaires (==, !=)
-///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext *ctx)
+antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
 {
-    // Évaluer les deux sous-expressions
+    // Visiter la première sous-expression
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
+    // Visiter la deuxième sous-expression
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    // Créer un nouveau temporary pour le résultat
+    // Créer une variable temporaire pour stocker le résultat de la comparaison
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-
-    std::string op = ctx->op->getText();
-    if (op == ">=")
-    {
-        bb->add_IRInstr(std::make_unique<IRGe>(bb, result, left, right));
-    }
-    else if (op == ">")
-    {
-        bb->add_IRInstr(std::make_unique<IRGt>(bb, result, left, right));
-    }
-    else if (op == "==")
-    {
-        bb->add_IRInstr(std::make_unique<IREgal>(bb, result, left, right));
-    }
-    else if (op == "!=")
-    {
-        bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, result, left, right));
-    }
-    else if (op == "<=")
-    {
-        bb->add_IRInstr(std::make_unique<IRCompInfEg>(bb, result, left, right));
-    }
-    else if (op == "<")
-    {
-        bb->add_IRInstr(std::make_unique<IRCompInf>(bb, result, left, right));
-    }
-    else
-    {
-        std::cerr << "Opérateur de comparaison non implémenté: " << op << "\n";
-        exit(1);
-    }
+    
+    // Créer une instruction IRComp avec l'opérateur récupéré (par exemple, ">", "<", etc.)
+    auto instr = std::make_unique<IRComp>(bb, result, left, right, ctx->op->getText());
+    bb->add_IRInstr(std::move(instr));
+    
     return result;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Expression multiplicative (*, /, %)
@@ -412,7 +385,6 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 
     return result;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "if - else"

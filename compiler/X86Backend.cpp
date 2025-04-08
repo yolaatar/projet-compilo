@@ -165,3 +165,37 @@ std::string X86Backend::getTempPrefix() const {
 std::string X86Backend::getArchitecture() const {
     return "X86";
 }
+
+void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
+    const std::string &src1, const std::string &src2,
+    const std::string &op) const {
+    // Charger src1 dans %eax pour éviter de comparer deux adresses mémoire.
+    os << "    movl " << src1 << ", %eax\n";
+    // Comparer le contenu de %eax (src1) avec src2.
+    os << "    cmpl " << src2 << ", %eax\n";
+    // Choisir l'instruction set selon l'opérateur.
+    if (op == ">")
+        os << "    setg %al\n";
+    else if (op == "<")
+        os << "    setl %al\n";
+    else if (op == ">=")
+        os << "    setge %al\n";
+    else if (op == "<=")
+        os << "    setle %al\n";
+    else
+        os << "    ; opérateur de comparaison non supporté: " << op << "\n";
+        os << "    movzbl %al, %eax\n";
+        os << "    movl %eax, " << dest << "\n";
+}
+
+void X86Backend::gen_jump_cond(std::ostream &os, const std::string &cond,const std::string &labelTrue,const std::string &labelFalse) const {
+    std::cerr << "[X86Backend] gen_jump_cond not implemented\n";
+}
+
+void X86Backend::gen_branch(std::ostream &os, const std::string &cond, const std::string &label_then, const std::string &label_else) const {
+    std::cerr << "[X86Backend] gen_branch not implemented\n";
+}
+
+void X86Backend::gen_jump(std::ostream &os, const std::string &target) const {
+    std::cerr << "[X86Backend] gen_jump not implemented\n";
+}

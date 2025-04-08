@@ -36,11 +36,11 @@ expr
     | '(' expr ')'                       # ParExpr
     | expr op=('<'|'>'|'<='|'>=') expr     # CompExpr
     | expr op=('=='|'!=') expr           # EgalExpr
-    | expr op=AND expr                   # EtParExpr       // && 
-    | expr op=OR expr                    # OuParExpr        // ||
-    | expr op='&' expr                  # EtLogExpr     // bit-à-bit
-    | expr op='^' expr                  # OuExcExpr
-    | expr op='|' expr                 # OuIncExpr
+    | expr '&' expr                      # EtLogExpr
+    | expr '^' expr                      # OuExcExpr
+    | expr '|' expr                      # OuIncExpr
+    | expr '&&' expr                     # EtParExpr
+    | expr '||' expr                     # OuParExpr
     | function_call                      # FuncCallExpr 
     | ID                                 # IdExpr
     | CONST                              # ConstExpr
@@ -51,10 +51,6 @@ function_call : ID '(' (expr (',' expr)*)? ')' ;
 RETURN : 'return' ;
 CONST : [0-9]+ ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
-
-// Définition des opérateurs logiques de court-circuit
-AND : '&&';
-OR  : '||';
 
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;
