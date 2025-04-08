@@ -7,9 +7,6 @@
 #include <unordered_map>
 #include <vector>
 
-SymbolTableVisitor::SymbolTableVisitor()
-{
-}
 
 ///////////////////////////
 // VISITE DES DÉCLARATIONS
@@ -43,7 +40,7 @@ antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext 
 {
     std::string varName = ctx->ID()->getText();
     bool found = false;
-    // Chercher dans tous les contextes, du plus récent vers le plus ancien.
+    // Parcourir tous les contextes, du plus récent vers le plus ancien
     for (auto it = symbolStack.rbegin(); it != symbolStack.rend(); ++it) {
         if (it->find(varName) != it->end()) {
             (*it)[varName].initialised = true;
@@ -54,10 +51,8 @@ antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext 
     if (!found) {
         writeError(varName + " is not defined");
         exit(EXIT_FAILURE);
-    } else {
-        symbolTable[varName].initialised = true;
-        visit(ctx->expr());
     }
+
     visit(ctx->expr());
     return 0;
 }
