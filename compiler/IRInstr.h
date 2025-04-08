@@ -177,6 +177,19 @@ public:
         : IRInstr(bb, {dest, src1, src2}) {}
     void gen_asm(std::ostream &o) override;
 };
+class IRCompInf : public IRInstr {
+public:
+    IRCompInf(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+        : IRInstr(bb, {dest, src1, src2}) {}
+    void gen_asm(std::ostream &o) override;
+};
+
+class IRCompInfEg : public IRInstr {
+public:
+    IRCompInfEg(BasicBlock *bb, const std::string &dest, const std::string &src1, const std::string &src2)
+        : IRInstr(bb, {dest, src1, src2}) {}
+    void gen_asm(std::ostream &o) override;
+};
 
 class IRPutChar : public IRInstr
 {
@@ -247,5 +260,6 @@ public:
 
     void gen_asm(std::ostream &o) override;
 };
+
 
 #endif
