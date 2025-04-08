@@ -5,7 +5,7 @@
 include config.mk
 
 CC=g++
-CCFLAGS=-g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes # -Wno-defaulted-function-deleted -Wno-unknown-warning-option
+CCFLAGS=-w -g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes # -Wno-defaulted-function-deleted -Wno-unknown-warning-option
 LDFLAGS=-g
 
 default: all
@@ -23,6 +23,7 @@ OBJECTS = build/ifccBaseVisitor.o \
 		  build/IRInstr.o \
           build/SymbolTableVisitor.o \
           build/X86Backend.o  \
+		  build/ARM64Backend.o \
 		  build/BackendInitializr.o
 
 ifcc: $(OBJECTS)
@@ -41,7 +42,7 @@ build/%.o: generated/%.cpp
 	@mkdir -p build
 	$(CC) $(CCFLAGS) -MMD -o $@ $< 
 
-# automagic dependency management: `gcc -MMD` generates all the .d files for us
+# automagic dependency management: gcc -MMD generates all the .d files for us
 -include build/*.d
 build/%.d:
 
@@ -60,7 +61,7 @@ generated/ifccParser.cpp: ifcc.g4
 ##########################################
 # view the parse tree in a graphical window
 
-# Usage: `make gui FILE=path/to/your/file.c`
+# Usage: make gui FILE=path/to/your/file.c
 FILE ?= ../tests/testfiles/1_return42.c
 
 gui:

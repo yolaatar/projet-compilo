@@ -21,6 +21,7 @@ class  SymbolTableVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
         virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *context) override;
         virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
+        virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
         void addToSymbolTable(std::string s);
         std::string createNewTemp();
         void checkSymbolTable();
