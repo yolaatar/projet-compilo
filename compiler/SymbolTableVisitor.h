@@ -17,8 +17,6 @@ struct FunctionSignature
     std::string returnType;
     std::vector<std::string> paramsTypes;
 };
-
-
 class  SymbolTableVisitor : public ifccBaseVisitor {
 	public:
         static const int INTSIZE = 4;      

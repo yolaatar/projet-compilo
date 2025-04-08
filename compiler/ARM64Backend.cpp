@@ -210,20 +210,20 @@ std::string ARM64Backend::loadOperand(const std::string &operand, const std::str
     return "    ldr " + targetReg + ", " + operand + "\n";
 }
 
-void ARM64Backend::gen_gt(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-    os << "    ldr w0, " << src1 << "\n";
-    os << "    ldr w1, " << src2 << "\n";
-    os << "    cmp w0, w1\n";
-    os << "    cset w0, gt\n"; // w0 = 1 si src1 > src2
-    os << "    str w0, " << dest << "\n";
-}
-void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
-    os << "    ldr w0, " << src1 << "\n";
-    os << "    ldr w1, " << src2 << "\n";
-    os << "    cmp w0, w1\n";
-    os << "    cset w0, ge\n"; // w0 = 1 si src1 >= src2
-    os << "    str w0, " << dest << "\n";
-}
+// void ARM64Backend::gen_gt(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
+//     os << "    ldr w0, " << src1 << "\n";
+//     os << "    ldr w1, " << src2 << "\n";
+//     os << "    cmp w0, w1\n";
+//     os << "    cset w0, gt\n"; // w0 = 1 si src1 > src2
+//     os << "    str w0, " << dest << "\n";
+// }
+// void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
+//     os << "    ldr w0, " << src1 << "\n";
+//     os << "    ldr w1, " << src2 << "\n";
+//     os << "    cmp w0, w1\n";
+//     os << "    cset w0, ge\n"; // w0 = 1 si src1 >= src2
+//     os << "    str w0, " << dest << "\n";
+// }
 
 void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
