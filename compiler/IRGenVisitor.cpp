@@ -429,6 +429,7 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 {
+    std::string result = cfg->create_new_tempvar();
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
     std::string zero = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
@@ -460,6 +461,7 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
 {
+    std::string result = cfg->create_new_tempvar();
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
     std::string one = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
