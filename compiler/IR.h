@@ -50,7 +50,8 @@ public:
     CFG* cfg;
     std::vector<std::unique_ptr<IRInstr>> instrs;
     // TODO : Pour les if/then/else
-    // string test_var_name;  /** < when generating IR code for an if(expr) or while(expr) etc,
+    std::string test_var_name; 
+    ifccParser::ExprContext* cond_expr_ctx = nullptr;
 };
 
 /*---------------------------------------------------
@@ -62,6 +63,7 @@ public:
 
     DefFonction* ast;
     BasicBlock* current_bb;
+    BasicBlock* current_merge;
 
     void add_bb(BasicBlock* bb);
     std::string IR_reg_to_asm(std::string reg);

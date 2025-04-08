@@ -11,6 +11,7 @@ class  IRGenVisitor : public ifccBaseVisitor {
 	public:
         CFG* cfg;  // Pointeur vers le CFG en cours 
         CodeGenBackend *backend; // Backend pour la génération de code
+        SymbolTableVisitor stv;
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
         virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;

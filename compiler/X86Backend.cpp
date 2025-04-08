@@ -124,19 +124,6 @@ void X86Backend::gen_and(std::ostream &os,
     os << "    movl %eax, " << dest << "\n";
 }
 
-void X86Backend::gen_jump_cond(std::ostream &os, const std::string &cond,
-    const std::string &labelTrue,
-    const std::string &labelFalse) const {
-    os << "    movl " << cond << ", %eax\n";
-    os << "    cmpl $0, %eax\n";
-    os << "    jne " << labelTrue << "\n";
-    os << "    jmp " << labelFalse << "\n";
-}
-
-void X86Backend::gen_jump(std::ostream &os, const std::string &label) const {
-    os << "    jmp " << label << "\n";
-}
-
 void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
     const std::string &src1, const std::string &src2,
     const std::string &op) const {
