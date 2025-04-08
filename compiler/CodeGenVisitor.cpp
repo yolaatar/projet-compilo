@@ -240,3 +240,4 @@ std::string CodeGenVisitor::newTemp() {
 
     return "tmp" + std::to_string(tempCpt++);
 }
+

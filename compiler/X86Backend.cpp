@@ -62,7 +62,8 @@ void X86Backend::gen_not(std::ostream &os, const std::string &dest,
 
 void X86Backend::gen_egal(std::ostream &os, const std::string &dest,
                           const std::string &src1, const std::string &src2) const {
-    os << "    cmpl " << src2 << ", " << src1 << "\n";
+    os << "    movl " << src1 << ", %eax\n";
+    os << "    cmpl " << src2 << ", %eax\n";
     os << "    sete %al\n";
     os << "    movzbl %al, %eax\n";
     os << "    movl %eax, " << dest << "\n";
@@ -70,7 +71,8 @@ void X86Backend::gen_egal(std::ostream &os, const std::string &dest,
 
 void X86Backend::gen_notegal(std::ostream &os, const std::string &dest,
                              const std::string &src1, const std::string &src2) const {
-    os << "    cmpl " << src2 << ", " << src1 << "\n";
+    os << "    movl " << src1 << ", %eax\n";
+    os << "    cmpl " << src2 << ", %eax\n";
     os << "    setne %al\n";
     os << "    movzbl %al, %eax\n";
     os << "    movl %eax, " << dest << "\n";
@@ -96,11 +98,11 @@ void X86Backend::gen_call(std::ostream &os, const std::string &func) const {
     os << "    call " << func << "\n";
 }
 
-void X86Backend::gen_prologue(std::ostream &os, std::string &name) const {
+void X86Backend::gen_prologue(std::ostream &os, std::string &name, int Stacksize) const {
     os << ".globl " << name << "\n";
     os << name << ":\n";
     os << "    pushq %rbp\n";
-    os << "    movq %rsp, %rbp\n";
+    os << "    movq %rsp, %rbp\n";  
 }
 
 void X86Backend::gen_epilogue(std::ostream &os) const {
@@ -124,6 +126,37 @@ void X86Backend::gen_and(std::ostream &os,
     os << "    movl %eax, " << dest << "\n";
 }
 
+void X86Backend::gen_andPar(std::ostream &os,
+    const std::string &dest,
+    const std::string &src1,
+    const std::string &src2) {
+    os << "    cmpl $0, "<< src1 <<"\n"; 
+    os << "    je .false_" << labelCountFalse << "\n";
+    os << "    cmpl $0, "<< src2 <<"\n"; 
+    os << "    je .false_" << labelCountFalse << "\n";
+    os << "    movl $1, "<< dest <<"\n";  // Si les deux sont vrais, dest = 1
+    os << "    jmp .end_" << labelCountFalse << "\n";
+    os << ".false_" << labelCountFalse << ":\n";
+    os << "    movl $0,"<<dest << "\n";  // Résultat = 0 si un des deux est faux
+    os << ".end_" << labelCountFalse << ":\n";
+    labelCountFalse++;  // Incrémente le compteur pour éviter les conflits de labels
+}
+
+void X86Backend::gen_orPar(std::ostream &os,
+    const std::string &dest,
+    const std::string &src1,
+    const std::string &src2) {
+    os << "    cmpl $1, "<< src1 <<"\n"; 
+    os << "    je .true_" << labelCountTrue << "\n";
+    os << "    cmpl $1, "<< src2 <<"\n"; 
+    os << "    je .true_" << labelCountTrue << "\n";
+    os << "    movl $0, "<< dest <<"\n";  // Si les deux sont faux, dest = 0
+    os << "    jmp .end_" << labelCountTrue << "\n";
+    os << ".true_" << labelCountTrue << ":\n";
+    os << "    movl $1,"<<dest << "\n";  // Résultat = 1 si un des deux est vrai
+    os << ".end_" << labelCountTrue << ":\n";
+    labelCountTrue++;  // Incrémente le compteur pour éviter les conflits de labels
+}
 void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
     const std::string &src1, const std::string &src2,
     const std::string &op) const {
@@ -150,3 +183,11 @@ std::string X86Backend::getTempPrefix() const {
     return "!tmp";
 }
 
+
+std::string X86Backend::getArchitecture() const {
+    return "X86";
+}
+
+void X86Backend::gen_branch(std::ostream &os, const std::string &cond, const std::string &label_then, const std::string &label_else) const {
+    std::cerr << "[X86Backend] gen_branch not implemented\n";
+}
