@@ -332,7 +332,29 @@ antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext 
     std::string name = ctx->ID()->getText();
     BasicBlock *bb = cfg->current_bb;
 
-    // Cas spéciaux
+    // 🔒 Vérification dans la table des fonctions
+    if (functionTable && functionTable->find(name) == functionTable->end())
+    {
+        std::cerr << "[ERROR] Function '" << name << "' is not declared\n";
+        exit(1);
+    }
+
+    // Vérifie le nombre de paramètres si on a une signature
+    if (functionTable)
+    {
+        const auto &sig = (*functionTable)[name];
+        size_t expected = sig.paramsTypes.size();
+        size_t actual = ctx->expr().size();
+
+        if (expected != actual)
+        {
+            std::cerr << "[ERROR] Function '" << name << "' expects " << expected
+                      << " arguments but got " << actual << "\n";
+            exit(1);
+        }
+    }
+
+    // 🔁 Cas spéciaux
     if (name == "getchar")
     {
         cfg->usesGetChar = true;
@@ -348,7 +370,7 @@ antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext 
         return arg;
     }
 
-    // Cas générique : fonction utilisateur
+    // 🔁 Cas générique : fonction utilisateur
     std::vector<std::string> arguments;
     for (auto exprCtx : ctx->expr())
     {
@@ -359,6 +381,7 @@ antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext 
     bb->add_IRInstr(std::make_unique<IRCall>(bb, name, arguments, returnVar));
     return returnVar;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // OR bit-à-bit

@@ -11,6 +11,7 @@ class  IRGenVisitor : public ifccBaseVisitor {
 	public:
         CFG* cfg;  // Pointeur vers le CFG en cours 
         CodeGenBackend *backend; // Backend pour la génération de code
+        std::map<std::string, FunctionSignature>* functionTable = nullptr;
         bool hasReturned = false; // Indique si une instruction de retour a été rencontrée
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;

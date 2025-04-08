@@ -1,20 +1,28 @@
 #include "SymbolTableVisitor.h"
 #include "IR.h"
 
+SymbolTableVisitor::SymbolTableVisitor()
+{
+}
+
 antlrcpp::Any SymbolTableVisitor::visitDecl(ifccParser::DeclContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
 
-    if(symbolTable.find(varName) != symbolTable.end()){
-        writeWarning(varName+"is already defined");
-    } else {
+    if (symbolTable.find(varName) != symbolTable.end())
+    {
+        writeWarning(varName + "is already defined");
+    }
+    else
+    {
         addToSymbolTable(varName);
     }
 
-    if(ctx->expr() != nullptr){
+    if (ctx->expr() != nullptr)
+    {
         symbolTable[varName].initialised = true;
         visit(ctx->expr());
-    } 
+    }
 
     return 0;
 }
@@ -23,10 +31,13 @@ antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext 
 {
     std::string varName = ctx->ID()->getText();
 
-    if(symbolTable.find(varName) == symbolTable.end()){
-        writeError(varName+" is not defined");
+    if (symbolTable.find(varName) == symbolTable.end())
+    {
+        writeError(varName + " is not defined");
         exit(EXIT_FAILURE);
-    } else {
+    }
+    else
+    {
         symbolTable[varName].initialised = true;
         visit(ctx->expr());
     }
@@ -34,17 +45,24 @@ antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext 
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx){
+antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
+{
     std::string varName = ctx->ID()->getText();
 
-    if(symbolTable.find(varName) == symbolTable.end()){
-        writeError(varName+" is not defined");
+    if (symbolTable.find(varName) == symbolTable.end())
+    {
+        writeError(varName + " is not defined");
         exit(EXIT_FAILURE);
-    } else {
-        if(!symbolTable[varName].initialised){
-            writeError(varName+" is not initialised");
+    }
+    else
+    {
+        if (!symbolTable[varName].initialised)
+        {
+            writeError(varName + " is not initialised");
             exit(EXIT_FAILURE);
-        } else {
+        }
+        else
+        {
             symbolTable[varName].used = true;
         }
     }
@@ -52,31 +70,42 @@ antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx){
     return 0;
 }
 
-antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
-    // Réinitialise la table des symboles pour chaque fonction
+antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx)
+{
     symbolTable.clear();
     offset = INTSIZE;
+    std::string funcName = ctx->ID()->getText();
+    std::string returnType = ctx->type()->getText();
+    std::vector<std::string> params;
 
-    // Ajoute les paramètres dans la table des symboles
-    if (ctx->decl_params()) {
-        for (auto param : ctx->decl_params()->param()) {
+    if (ctx->decl_params())
+    {
+        for (auto param : ctx->decl_params()->param())
+        {
             std::string paramName = param->ID()->getText();
             addToSymbolTable(paramName);
-            symbolTable[paramName].initialised = true; // un paramètre est toujours initialisé
+            symbolTable[paramName].initialised = true;
+            params.push_back("int");
         }
     }
 
-    // Visite les instructions du corps
-    for (auto inst : ctx->inst()) {
+    if (functionTable)
+    {
+        (*functionTable)[funcName] = FunctionSignature{returnType, params};
+    }
+
+    for (auto inst : ctx->inst())
+    {
         visit(inst);
     }
 
     return 0;
 }
 
-
-antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx){
-    if (ctx->expr()) {
+antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
+{
+    if (ctx->expr())
+    {
         visit(ctx->expr());
     }
 
@@ -84,46 +113,56 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
     return 0;
 }
 
-
-void SymbolTableVisitor::addToSymbolTable(std::string s){
-    if(symbolTable.find(s) != symbolTable.end()){
-        writeWarning(s+" is already defined");
-    } else {
+void SymbolTableVisitor::addToSymbolTable(std::string s)
+{
+    if (symbolTable.find(s) != symbolTable.end())
+    {
+        writeWarning(s + " is already defined");
+    }
+    else
+    {
         symbolTable[s] = SymbolTableStruct{};
         symbolTable[s].offset = -offset;
         offset += INTSIZE;
     }
 }
 
-std::string SymbolTableVisitor::createNewTemp() {
+std::string SymbolTableVisitor::createNewTemp()
+{
     std::string prefix = codegenBackend->getTempPrefix();
     std::string temp = prefix + std::to_string(offset);
     addToSymbolTable(temp);
     return temp;
 }
 
-void SymbolTableVisitor::checkSymbolTable(){
-    for(auto const& item : symbolTable){
-        if(!item.second.initialised || !item.second.used){
-            writeWarning(item.first+" is defined but not used");
+void SymbolTableVisitor::checkSymbolTable()
+{
+    for (auto const &item : symbolTable)
+    {
+        if (!item.second.initialised || !item.second.used)
+        {
+            writeWarning(item.first + " is defined but not used");
         }
     }
 }
 
-
-void SymbolTableVisitor::writeWarning(std::string message){
+void SymbolTableVisitor::writeWarning(std::string message)
+{
     warning++;
     std::cerr << "[WARNING] " << message << "\n";
 }
 
-void SymbolTableVisitor::writeError(std::string message){
+void SymbolTableVisitor::writeError(std::string message)
+{
     error++;
     std::cerr << "[ERROR] " << message << "\n";
 }
 
-void SymbolTableVisitor::print_symbol_table(std::ostream& os) const {
+void SymbolTableVisitor::print_symbol_table(std::ostream &os) const
+{
     os << "==== Symbol Table ====\n";
-    for (const auto& [name, info] : symbolTable) {
+    for (const auto &[name, info] : symbolTable)
+    {
         os << "  " << name << " -> offset: " << info.offset << "\n";
     }
     os << "======================\n";
