@@ -4,7 +4,7 @@
 // Définition du pointeur global en tant que const CodeGenBackend*
 const CodeGenBackend* codegenBackend = nullptr;
 
-static ARM64Backend backendInstance;
+static X86Backend backendInstance;
 
 __attribute__((constructor))
 static void initBackend() {
