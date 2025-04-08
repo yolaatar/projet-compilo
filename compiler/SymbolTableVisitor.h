@@ -16,10 +16,14 @@ struct FunctionSignature
 {
     std::string returnType;
     std::vector<std::string> paramsTypes;
+};
+
+
 class  SymbolTableVisitor : public ifccBaseVisitor {
 	public:
         static const int INTSIZE = 4;      
         std::vector<std::unordered_map<std::string, SymbolTableStruct>> symbolStack;
+        std::map<std::string, FunctionSignature>* functionTable;
 ;
         int offset = INTSIZE;
         int error = 0;
@@ -38,29 +42,4 @@ class  SymbolTableVisitor : public ifccBaseVisitor {
         void print_symbol_table(std::ostream& os = std::cerr) const;
         void exitScope();
         void enterScope();
-};
-
-class SymbolTableVisitor : public ifccBaseVisitor
-{
-public :
-
-    SymbolTableVisitor();
-
-    static const int INTSIZE = 4;
-    std::map<std::string, SymbolTableStruct> symbolTable;
-    std::map<std::string, FunctionSignature>* functionTable;
-    int offset = INTSIZE;
-    int error = 0;
-    int warning = 0;
-    virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
-    virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
-    virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *context) override;
-    virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
-    virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
-    void addToSymbolTable(std::string s);
-    std::string createNewTemp();
-    void checkSymbolTable();
-    void writeWarning(std::string message);
-    void writeError(std::string message);
-    void print_symbol_table(std::ostream &os = std::cerr) const;
 };
