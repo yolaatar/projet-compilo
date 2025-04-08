@@ -12,7 +12,7 @@
 #include "SymbolTableVisitor.h"
 #include "CodeGenBackend.h"
 #include "IRInstr.h"
-
+class CFG;
 extern CodeGenBackend* codegenBackend;
 
 //-----------------------------------------------------
@@ -46,9 +46,7 @@ public:
     std::string label;
     CFG* cfg;
     std::vector<std::unique_ptr<IRInstr>> instrs;
-    // TODO : Pour les if/then/else
     std::string test_var_name; 
-    ifccParser::ExprContext* cond_expr_ctx = nullptr;
 };
 
 /*---------------------------------------------------
@@ -76,25 +74,6 @@ private:
     SymbolTableVisitor stv;
     int nextBBnumber;
     std::vector<BasicBlock*> bbs;
-};
-
-/*---------------------------------------------------
- * BasicBlock : Bloc basique d'instructions IR
- *---------------------------------------------------*/
-class BasicBlock {
-public:
-    BasicBlock(CFG* cfg, std::string entry_label)
-        : cfg(cfg), label(entry_label + "_" + cfg->ast->name), exit_true(nullptr), exit_false(nullptr) {}
-    
-    void gen_asm(std::ostream &o);
-    void add_IRInstr(std::unique_ptr<IRInstr> instr);
-    void print_instrs() const;
-
-    BasicBlock* exit_true;
-    BasicBlock* exit_false;
-    std::string label;
-    CFG* cfg;
-    std::vector<std::unique_ptr<IRInstr>> instrs;
 };
 
 #endif

@@ -126,37 +126,6 @@ void X86Backend::gen_and(std::ostream &os,
     os << "    movl %eax, " << dest << "\n";
 }
 
-void X86Backend::gen_andPar(std::ostream &os,
-    const std::string &dest,
-    const std::string &src1,
-    const std::string &src2) {
-    os << "    cmpl $0, "<< src1 <<"\n"; 
-    os << "    je .false_" << labelCountFalse << "\n";
-    os << "    cmpl $0, "<< src2 <<"\n"; 
-    os << "    je .false_" << labelCountFalse << "\n";
-    os << "    movl $1, "<< dest <<"\n";  // Si les deux sont vrais, dest = 1
-    os << "    jmp .end_" << labelCountFalse << "\n";
-    os << ".false_" << labelCountFalse << ":\n";
-    os << "    movl $0,"<<dest << "\n";  // Résultat = 0 si un des deux est faux
-    os << ".end_" << labelCountFalse << ":\n";
-    labelCountFalse++;  // Incrémente le compteur pour éviter les conflits de labels
-}
-
-void X86Backend::gen_orPar(std::ostream &os,
-    const std::string &dest,
-    const std::string &src1,
-    const std::string &src2) {
-    os << "    cmpl $1, "<< src1 <<"\n"; 
-    os << "    je .true_" << labelCountTrue << "\n";
-    os << "    cmpl $1, "<< src2 <<"\n"; 
-    os << "    je .true_" << labelCountTrue << "\n";
-    os << "    movl $0, "<< dest <<"\n";  // Si les deux sont faux, dest = 0
-    os << "    jmp .end_" << labelCountTrue << "\n";
-    os << ".true_" << labelCountTrue << ":\n";
-    os << "    movl $1,"<<dest << "\n";  // Résultat = 1 si un des deux est vrai
-    os << ".end_" << labelCountTrue << ":\n";
-    labelCountTrue++;  // Incrémente le compteur pour éviter les conflits de labels
-}
 void X86Backend::gen_comp(std::ostream &os, const std::string &dest,
     const std::string &src1, const std::string &src2,
     const std::string &op) const {
