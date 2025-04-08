@@ -148,8 +148,7 @@ void ARM64Backend::gen_epilogue(std::ostream &os) const {
 }
 
 
-void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest,
-                             const std::string &src) const {
+void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const {
     bool srcIsMem = src.find('[') != std::string::npos;
     bool destIsMem = dest.find('[') != std::string::npos;
 
@@ -178,10 +177,7 @@ void ARM64Backend::gen_copy(std::ostream &os, const std::string &dest,
 
 
 
-void ARM64Backend::gen_and(std::ostream &os,
-                           const std::string &dest,
-                           const std::string &src1,
-                           const std::string &src2) const {
+void ARM64Backend::gen_and(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << loadOperand(src1, "w0");
     os << loadOperand(src2, "w1");
     os << "    and w0, w0, w1\n";            // AND w0 with w1
@@ -214,16 +210,14 @@ std::string ARM64Backend::loadOperand(const std::string &operand, const std::str
     return "    ldr " + targetReg + ", " + operand + "\n";
 }
 
-void ARM64Backend::gen_gt(std::ostream &os, const std::string &dest,
-                           const std::string &src1, const std::string &src2) const {
+void ARM64Backend::gen_gt(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    ldr w0, " << src1 << "\n";
     os << "    ldr w1, " << src2 << "\n";
     os << "    cmp w0, w1\n";
     os << "    cset w0, gt\n"; // w0 = 1 si src1 > src2
     os << "    str w0, " << dest << "\n";
 }
-void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest,
-                           const std::string &src1, const std::string &src2) const {
+void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    ldr w0, " << src1 << "\n";
     os << "    ldr w1, " << src2 << "\n";
     os << "    cmp w0, w1\n";
@@ -231,8 +225,7 @@ void ARM64Backend::gen_ge(std::ostream &os, const std::string &dest,
     os << "    str w0, " << dest << "\n";
 }
 
-void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest,
-                                 const std::string &src1, const std::string &src2) const {
+void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
     os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1
     os << "    cmp w0, w1\n";              // Comparer w0 et w1
@@ -240,8 +233,7 @@ void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest,
     os << "    str w0, " << dest << "\n";  // Stocker le résultat dans dest
 }
 
-void ARM64Backend::gen_gcompinfeg(std::ostream &os, const std::string &dest,
-                                   const std::string &src1, const std::string &src2) const {
+void ARM64Backend::gen_gcompinfeg(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
 
     os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
     os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1
@@ -264,27 +256,21 @@ void ARM64Backend::gen_jump(std::ostream &os, const std::string &target) const {
     os << "    b " << target << "\n";
 }
 
-void ARM64Backend::gen_branch(std::ostream &os, const std::string &cond,
-                                const std::string &label_then, const std::string &label_else) const {
+void ARM64Backend::gen_branch(std::ostream &os, const std::string &cond, const std::string &label_then, const std::string &label_else) const {
     // On suppose que 'cond' est déjà dans un registre (par exemple, x0).
     // On émet la branche conditionnelle en utilisant les labels locaux.
     os << "    cbz x0, " << label_else << "\n";
     os << "    b " << label_then << "\n";
 }
 
-void ARM64Backend::gen_jump_cond(std::ostream &os, const std::string &cond,
-                                 const std::string &labelTrue,
-                                 const std::string &labelFalse) const {
+void ARM64Backend::gen_jump_cond(std::ostream &os, const std::string &cond, const std::string &labelTrue, const std::string &labelFalse) const {
     os << "    ldr w0, " << cond << "\n";
     os << "    cbnz w0, " << labelTrue << "\n";
     os << "    b " << labelFalse << "\n";
 }
 
 
-void ARM64Backend::gen_andPar(std::ostream &os,
-    const std::string &dest,
-    const std::string &src1,
-    const std::string &src2) {
+void ARM64Backend::gen_andPar(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) {
     os << "    ldr w1, " << src1 << "\n";
     os << "    cmp w1, #0\n";
     os << "    beq .false_" << labelCountFalse << "\n";
@@ -305,10 +291,7 @@ void ARM64Backend::gen_andPar(std::ostream &os,
     labelCountFalse++;
 }
 
-void ARM64Backend::gen_orPar(std::ostream &os,
-    const std::string &dest,
-    const std::string &src1,
-    const std::string &src2) {
+void ARM64Backend::gen_orPar(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) {
     os << "    ldr w1, " << src1 << "\n";
     os << "    cmp w1, #1\n";
     os << "    beq .true_" << labelCountTrue << "\n";

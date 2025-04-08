@@ -198,7 +198,7 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     // Étape 3 : calcul du maxOffset pour l'allocation stack
     int minOffset = 0;
-    for (const auto &[_, info] : cfg->get_stv().symbolTable)
+    for (const auto &[_, info] : cfg->get_stv().symbolStack.front())
     {
         if (info.offset < minOffset)
         {
@@ -412,50 +412,8 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 
     return result;
 }
-/*
-antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext* ctx)
-{
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRAnd>(bb, result, left, right);
-    bb->add_IRInstr(std::move(instr));
-    return result;
-}
 
-///////////////////////////////////////////////////////////////////////////////
-// Traitement de l'opérateur logique "&&"
-///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
-{
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRAndPar>(bb, result, left, right);
-    bb->add_IRInstr(std::move(instr));
-    return result;
-}
 
-///////////////////////////////////////////////////////////////////////////////
-// Traitement de l'opérateur logique "||"
-///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
-{
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IROrPar>(bb, result, left, right);
-    bb->add_IRInstr(std::move(instr));
-    return result;
-}
-*/
-
-///////////////////////////////////////////////////////////////////////////////
-// IF THEN ELSE
-///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "if - else"
 ///////////////////////////////////////////////////////////////////////////////
@@ -553,3 +511,7 @@ antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx) 
 
     return nullptr;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Shadowing et portée
+///////////////////////////////////////////////////////////////////////////////
