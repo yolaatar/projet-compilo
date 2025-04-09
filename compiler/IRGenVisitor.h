@@ -7,6 +7,7 @@
 #include "IR.h"
 #include "SymbolTableVisitor.h"
 
+
 class  IRGenVisitor : public ifccBaseVisitor {
 	public:
         CFG* cfg;  // Pointeur vers le CFG en cours 
@@ -14,6 +15,10 @@ class  IRGenVisitor : public ifccBaseVisitor {
         std::map<std::string, FunctionSignature>* functionTable = nullptr;
         bool hasReturned = false; // Indique si une instruction de retour a été rencontrée
         SymbolTableVisitor stv;
+        std::unordered_map<std::string, int> constMap;
+
+        std::string gen_const(int value);
+
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
         virtual antlrcpp::Any visitAxiom(ifccParser::AxiomContext *ctx) override ;

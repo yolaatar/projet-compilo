@@ -12,14 +12,24 @@ using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    auto valAny = this->visit(ctx->expr());
+    std::string temp;
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRReturn>(bb, temp);
-    bb->add_IRInstr(std::move(instr));
 
-    hasReturned = true; // Marque que le return a été rencontré
+    if (valAny.type() == typeid(int)) {
+        int val = std::any_cast<int>(valAny);
+        temp = cfg->create_new_tempvar();
+        bb->add_IRInstr(std::make_unique<IRLdConst>(bb, temp, std::to_string(val)));
+        std::cerr << "[FOLD RETURN] return " << val << "\n";
+    } else {
+        temp = std::any_cast<std::string>(valAny);
+    }
+
+    bb->add_IRInstr(std::make_unique<IRReturn>(bb, temp));
+    hasReturned = true;
     return temp;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // visitDecl : Traitement d'une déclaration "int ID ('=' expr)?".
@@ -28,18 +38,32 @@ antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
     BasicBlock *bb = cfg->current_bb;
+
     if (ctx->expr() != nullptr)
     {
-        std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
-        auto instr = std::make_unique<IRCopy>(bb, varName, temp);
-        cfg->current_bb->add_IRInstr(std::move(instr));
+        auto val = visit(ctx->expr());
+
+        if (val.type() == typeid(int))
+        {
+            int constVal = std::any_cast<int>(val);
+            constMap[varName] = constVal;
+            bb->add_IRInstr(std::make_unique<IRLdConst>(bb, varName, std::to_string(constVal)));
+            return constVal;
+        }
+        else
+        {
+            std::string temp = std::any_cast<std::string>(val);
+            constMap.erase(varName); // Pas une constante
+            bb->add_IRInstr(std::make_unique<IRCopy>(bb, varName, temp));
+            return varName;
+        }
     }
     else
     {
-        auto instr = std::make_unique<IRLdConst>(bb, varName, "0");
-        cfg->current_bb->add_IRInstr(std::move(instr));
+        constMap[varName] = 0;
+        bb->add_IRInstr(std::make_unique<IRLdConst>(bb, varName, "0"));
+        return 0;
     }
-    return varName;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,14 +71,9 @@ antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 {
-    int value = std::stoi(ctx->CONST()->getText());
-    std::string temp = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRLdConst>(bb, temp, std::to_string(value));
-    bb->add_IRInstr(std::move(instr));
-    // Retourner explicitement une std::string dans le std::any
-    return temp;
+    return std::stoi(ctx->CONST()->getText());  // retourne directement un entier ✅
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une variable (IdExpr)
@@ -62,7 +81,11 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
-    return varName; // Retourne une std::string
+    if (constMap.find(varName) != constMap.end())
+    {
+        return constMap[varName]; // Propagation directe
+    }
+    return varName; // Pas une constante, retourne le nom
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -70,66 +93,121 @@ antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx)
 {
-    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    auto val = visit(ctx->expr());
+
+    if (val.type() == typeid(int))
+    {
+        int folded = -std::any_cast<int>(val);
+        std::cerr << "[FOLD] -" << std::any_cast<int>(val) << " = " << folded << "\n";
+        return folded;
+    }
+
+    std::string exprTemp = std::any_cast<std::string>(val);
     std::string result = cfg->create_new_tempvar();
+    std::string zeroTemp = cfg->create_new_tempvar();
+
     BasicBlock *bb = cfg->current_bb;
-    auto zeroTemp = cfg->create_new_tempvar();
-    auto loadZero = std::make_unique<IRLdConst>(bb, zeroTemp, "0");
-    bb->add_IRInstr(std::move(loadZero));
-    auto subInstr = std::make_unique<IRSub>(bb, result, zeroTemp, exprTemp);
-    bb->add_IRInstr(std::move(subInstr));
+    bb->add_IRInstr(std::make_unique<IRLdConst>(bb, zeroTemp, "0"));
+    bb->add_IRInstr(std::make_unique<IRSub>(bb, result, zeroTemp, exprTemp));
+
     return result;
 }
 
-antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
+
+antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext *ctx)
 {
-    // Visiter la première sous-expression
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    // Visiter la deuxième sous-expression
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    // Créer une variable temporaire pour stocker le résultat de la comparaison
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+    std::string op = ctx->op->getText();
+
+    bool isLeftConst = leftAny.type() == typeid(int);
+    bool isRightConst = rightAny.type() == typeid(int);
+
+    if (isLeftConst && isRightConst)
+    {
+        int l = std::any_cast<int>(leftAny);
+        int r = std::any_cast<int>(rightAny);
+        bool res = false;
+
+        if (op == "<") res = l < r;
+        else if (op == "<=") res = l <= r;
+        else if (op == ">") res = l > r;
+        else if (op == ">=") res = l >= r;
+
+        std::cerr << "[FOLD] " << l << " " << op << " " << r << " => " << res << "\n";
+        return static_cast<int>(res);
+    }
+
+    std::string left = isLeftConst ? std::to_string(std::any_cast<int>(leftAny)) : std::any_cast<std::string>(leftAny);
+    std::string right = isRightConst ? std::to_string(std::any_cast<int>(rightAny)) : std::any_cast<std::string>(rightAny);
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    
-    // Créer une instruction IRComp avec l'opérateur récupéré (par exemple, ">", "<", etc.)
-    auto instr = std::make_unique<IRComp>(bb, result, left, right, ctx->op->getText());
-    bb->add_IRInstr(std::move(instr));
-    
+
+    bb->add_IRInstr(std::make_unique<IRComp>(bb, result, left, right, op));
     return result;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Expression multiplicative (*, /, %)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx)
 {
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+    std::string op = ctx->op->getText();
+
+    bool leftIsConst = leftAny.type() == typeid(int);
+    bool rightIsConst = rightAny.type() == typeid(int);
+
+    if (leftIsConst && rightIsConst)
+    {
+        int lhs = std::any_cast<int>(leftAny);
+        int rhs = std::any_cast<int>(rightAny);
+        int folded;
+
+        if (op == "*")
+            folded = lhs * rhs;
+        else if (op == "/" && rhs != 0)
+            folded = lhs / rhs;
+        else if (op == "%" && rhs != 0)
+            folded = lhs % rhs;
+        else {
+            std::cerr << "[FOLD-ERROR] Division/modulo par zéro dans une expression constante.\n";
+            folded = 0; // Valeur par défaut sécurisée
+        }
+
+        std::cerr << "[FOLD] " << lhs << " " << op << " " << rhs << " = " << folded << std::endl;
+        return folded;
+    }
+
+    // Sinon : au moins un des deux est une variable ou temporaire
+    std::string left = leftIsConst ? gen_const(std::any_cast<int>(leftAny)) : std::any_cast<std::string>(leftAny);
+    std::string right = rightIsConst ? gen_const(std::any_cast<int>(rightAny)) : std::any_cast<std::string>(rightAny);
+
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
 
-    if (ctx->op->getText() == "*")
-    {
-        auto instr = std::make_unique<IRMul>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-    else if (ctx->op->getText() == "/")
-    {
-        auto instr = std::make_unique<IRDiv>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-    else if (ctx->op->getText() == "%")
-    {
-        auto instr = std::make_unique<IRMod>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-    else
-    {
-        std::cerr << "Opérateur MulDivExpr inconnu: " << ctx->op->getText() << "\n";
+    if (op == "*")
+        bb->add_IRInstr(std::make_unique<IRMul>(bb, result, left, right));
+    else if (op == "/")
+        bb->add_IRInstr(std::make_unique<IRDiv>(bb, result, left, right));
+    else if (op == "%")
+        bb->add_IRInstr(std::make_unique<IRMod>(bb, result, left, right));
+    else {
+        std::cerr << "[ERROR] Opérateur inconnu dans MulDivExpr: " << op << "\n";
         exit(1);
     }
 
     return result;
+}
+
+
+std::string IRGenVisitor::gen_const(int value)
+{
+    std::string temp = cfg->create_new_tempvar();
+    cfg->current_bb->add_IRInstr(std::make_unique<IRLdConst>(cfg->current_bb, temp, std::to_string(value)));
+    return temp;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -196,13 +274,21 @@ antlrcpp::Any IRGenVisitor::visitAxiom(ifccParser::AxiomContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 {
-    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    auto exprVal = this->visit(ctx->expr());
+
+    // 🔍 Propagation de constante si possible
+    if (exprVal.type() == typeid(int)) {
+        int val = std::any_cast<int>(exprVal);
+        return (val == 0) ? 1 : 0;
+    }
+
+    std::string exprTemp = std::any_cast<std::string>(exprVal);
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRNot>(bb, result, exprTemp);
-    cfg->current_bb->add_IRInstr(std::move(instr));
+    bb->add_IRInstr(std::make_unique<IRNot>(bb, result, exprTemp));
     return result;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Affectation
@@ -210,16 +296,26 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
-    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    auto val = visit(ctx->expr());
     BasicBlock *bb = cfg->current_bb;
 
-    if (varName != exprTemp)
-    { // éviter les copies inutiles
-        auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
-        cfg->current_bb->add_IRInstr(std::move(instr));
+    if (val.type() == typeid(int))
+    {
+        int constVal = std::any_cast<int>(val);
+        constMap[varName] = constVal;
+        bb->add_IRInstr(std::make_unique<IRLdConst>(bb, varName, std::to_string(constVal)));
+        return constVal;
     }
-
-    return varName;
+    else
+    {
+        std::string exprTemp = std::any_cast<std::string>(val);
+        constMap.erase(varName); // plus une constante connue
+        if (varName != exprTemp)
+        {
+            bb->add_IRInstr(std::make_unique<IRCopy>(bb, varName, exprTemp));
+        }
+        return varName;
+    }
 }
 
 antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
@@ -233,27 +329,36 @@ antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
 
 antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx)
 {
-    // Évalue les sous-expressions et s'assure de renvoyer des std::string
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+
+    bool leftIsConst = leftAny.type() == typeid(int);
+    bool rightIsConst = rightAny.type() == typeid(int);
+
+    if (leftIsConst && rightIsConst)
+    {
+        int lhs = std::any_cast<int>(leftAny);
+        int rhs = std::any_cast<int>(rightAny);
+        int folded = (ctx->op->getText() == "+") ? lhs + rhs : lhs - rhs;
+        std::cerr << "[FOLD] " << lhs << " " << ctx->op->getText() << " " << rhs << " = " << folded << "\n";
+        return folded;
+    }
+    std::string left = leftIsConst
+                           ? gen_const(std::any_cast<int>(leftAny))
+                           : std::any_cast<std::string>(leftAny);
+
+    std::string right = rightIsConst
+                            ? gen_const(std::any_cast<int>(rightAny))
+                            : std::any_cast<std::string>(rightAny);
+
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
 
     if (ctx->op->getText() == "+")
-    {
-        auto instr = std::make_unique<IRAdd>(bb, result, left, right);
-        bb->add_IRInstr(std::move(instr));
-    }
+        bb->add_IRInstr(std::make_unique<IRAdd>(bb, result, left, right));
     else if (ctx->op->getText() == "-")
-    {
-        auto instr = std::make_unique<IRSub>(bb, result, left, right);
-        bb->add_IRInstr(std::move(instr));
-    }
-    else
-    {
-        std::cerr << "Opérateur inconnu in AddSubExpr: " << ctx->op->getText() << "\n";
-        exit(1);
-    }
+        bb->add_IRInstr(std::make_unique<IRSub>(bb, result, left, right));
+
     return result;
 }
 
@@ -262,40 +367,56 @@ antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext *ctx)
 {
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+
+    bool leftConst = leftAny.type() == typeid(int);
+    bool rightConst = rightAny.type() == typeid(int);
+
+    if (leftConst && rightConst)
+    {
+        int l = std::any_cast<int>(leftAny);
+        int r = std::any_cast<int>(rightAny);
+        bool result = (ctx->op->getText() == "==") ? (l == r) : (l != r);
+        std::cerr << "[FOLD] " << l << " " << ctx->op->getText() << " " << r << " => " << result << "\n";
+        return static_cast<int>(result);
+    }
+
+    std::string left = leftConst ? std::to_string(std::any_cast<int>(leftAny)) : std::any_cast<std::string>(leftAny);
+    std::string right = rightConst ? std::to_string(std::any_cast<int>(rightAny)) : std::any_cast<std::string>(rightAny);
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
 
     if (ctx->op->getText() == "==")
-    {
-        auto instr = std::make_unique<IREgal>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-    else if (ctx->op->getText() == "!=")
-    {
-        auto instr = std::make_unique<IRNotEgal>(bb, result, left, right);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
+        bb->add_IRInstr(std::make_unique<IREgal>(bb, result, left, right));
     else
-    {
-        std::cerr << "Opérateur inconnu in EgalExpr: " << ctx->op->getText() << "\n";
-        exit(1);
-    }
+        bb->add_IRInstr(std::make_unique<IRNotEgal>(bb, result, left, right));
+
     return result;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // XOR bit-à-bit
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext *ctx)
 {
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+
+    if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
+    {
+        int l = std::any_cast<int>(leftAny);
+        int r = std::any_cast<int>(rightAny);
+        return l ^ r;
+    }
+
+    std::string left = std::any_cast<std::string>(leftAny);
+    std::string right = std::any_cast<std::string>(rightAny);
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRXor>(bb, result, left, right);
-    cfg->current_bb->add_IRInstr(std::move(instr));
+
+    bb->add_IRInstr(std::make_unique<IRXor>(bb, result, left, right));
     return result;
 }
 
@@ -354,18 +475,25 @@ antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext 
     return returnVar;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // OR bit-à-bit
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext *ctx)
 {
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+
+    if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
+    {
+        int lhs = std::any_cast<int>(leftAny);
+        int rhs = std::any_cast<int>(rightAny);
+        return lhs | rhs;
+    }
+
+    std::string lhs = std::any_cast<std::string>(leftAny);
+    std::string rhs = std::any_cast<std::string>(rightAny);
     std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IROr>(bb, result, left, right);
-    cfg->current_bb->add_IRInstr(std::move(instr));
+    cfg->current_bb->add_IRInstr(std::make_unique<IROr>(cfg->current_bb, result, lhs, rhs));
     return result;
 }
 
@@ -374,35 +502,41 @@ antlrcpp::Any IRGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 {
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
+    auto leftAny = visit(ctx->expr(0));
+    auto rightAny = visit(ctx->expr(1));
+
+    if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
+    {
+        int lhs = std::any_cast<int>(leftAny);
+        int rhs = std::any_cast<int>(rightAny);
+        return lhs & rhs;
+    }
+
+    std::string lhs = std::any_cast<std::string>(leftAny);
+    std::string rhs = std::any_cast<std::string>(rightAny);
     std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-
-    // Génère directement un AND bitwise sur left et right
-    bb->add_IRInstr(std::make_unique<IRAnd>(bb, result, left, right));
-
+    cfg->current_bb->add_IRInstr(std::make_unique<IRAnd>(cfg->current_bb, result, lhs, rhs));
     return result;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "if - else"
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
+antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-    
+
     // Conserver le bloc courant
-    BasicBlock* currentBB = cfg->current_bb;
-    
+    BasicBlock *currentBB = cfg->current_bb;
+
     // 1. Évaluer la condition et obtenir son temporary
     currentBB->test_var_name = std::any_cast<std::string>(this->visit(ctx->expr()));
-    
+
     // 2. Créer les BasicBlocks pour la branche then, la branche else et le bloc de fusion (merge) pour cet if
-    BasicBlock* thenBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
     thenBB->label += "_then";
-    BasicBlock* elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
     elseBB->label += "_else";
-    BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
     mergeBB->label += "_merge";
 
     mergeBB->exit_true = currentBB->exit_true;
@@ -415,53 +549,65 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
     elseBB->exit_false = mergeBB;
 
     cfg->current_bb = thenBB;
-    
+
     // 4. Générer le code pour la branche then.
-    cfg->add_bb(thenBB);  
-    this->visit(ctx->block(0));  // Traiter le bloc then
-    
+    cfg->add_bb(thenBB);
+    this->visit(ctx->block(0)); // Traiter le bloc then
+
     // 5. Générer le code pour la branche else.
     cfg->add_bb(elseBB);
     cfg->current_bb = elseBB;
-    if (ctx->block().size() > 1) {
+    if (ctx->block().size() > 1)
+    {
         this->visit(ctx->block(1)); // Traiter le bloc else s'il existe
     }
-    
+
     // 6. Ajouter le bloc de fusion et le définir comme bloc courant
     cfg->add_bb(mergeBB);
     cfg->current_bb = mergeBB;
-    
+
     return std::string("0");
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur logique "&&"
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
+antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext *ctx)
 {
-    std::string result = cfg->create_new_tempvar();
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string zero = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
+
+    auto leftAny = this->visit(ctx->expr(0));
+    bool leftIsConst = leftAny.type() == typeid(int);
+    std::string left = leftIsConst ? std::to_string(std::any_cast<int>(leftAny))
+                                   : std::any_cast<std::string>(leftAny);
+
+    auto rightAny = this->visit(ctx->expr(1));
+    bool rightIsConst = rightAny.type() == typeid(int);
+    std::string right = rightIsConst ? std::to_string(std::any_cast<int>(rightAny))
+                                     : std::any_cast<std::string>(rightAny);
+
+    std::string result = cfg->create_new_tempvar();
+    std::string zero = cfg->create_new_tempvar();
     bb->add_IRInstr(std::make_unique<IRLdConst>(bb, zero, "0"));
+
     // Création des blocs
-    BasicBlock* evalRight = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* end = new BasicBlock(cfg, cfg->new_BB_name());
-    // Générer un saut conditionnel
+    BasicBlock *evalRight = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *end = new BasicBlock(cfg, cfg->new_BB_name());
+
+    // Générer les branches
     bb->exit_true = evalRight;
     bb->exit_false = end;
-    // Compléter le bloc de droite
+
+    // Corps du bloc right
     cfg->add_bb(evalRight);
     cfg->current_bb = evalRight;
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
     evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
-    //evalRight->exit_true = end;
+
     // Bloc de fin
     cfg->add_bb(end);
     cfg->current_bb = end;
-    auto setFalse = std::make_unique<IRCopy>(end, result, zero);
-    end->add_IRInstr(std::move(setFalse));
+    end->add_IRInstr(std::make_unique<IRCopy>(end, result, zero));
+
     return result;
 }
 
@@ -470,54 +616,62 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 // Traitement du "while"
 ///////////////////////////////////////////////////////////////////////////////
 
-antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
+antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext *ctx)
 {
-    std::string result = cfg->create_new_tempvar();
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string one = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
+
+    auto leftAny = this->visit(ctx->expr(0));
+    bool leftIsConst = leftAny.type() == typeid(int);
+    std::string left = leftIsConst ? std::to_string(std::any_cast<int>(leftAny))
+                                   : std::any_cast<std::string>(leftAny);
+
+    auto rightAny = this->visit(ctx->expr(1));
+    bool rightIsConst = rightAny.type() == typeid(int);
+    std::string right = rightIsConst ? std::to_string(std::any_cast<int>(rightAny))
+                                     : std::any_cast<std::string>(rightAny);
+
+    std::string result = cfg->create_new_tempvar();
+    std::string one = cfg->create_new_tempvar();
     bb->add_IRInstr(std::make_unique<IRLdConst>(bb, one, "1"));
-    
+
     // Création des blocs
-    BasicBlock* evalRight = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* end = new BasicBlock(cfg, cfg->new_BB_name());
-    
-    // Générer un saut conditionnel pour "left"
-    bb->exit_true = end;      // Si "left" est vrai, on va directement à la fin
-    bb->exit_false = evalRight;  // Sinon, on évalue l'expression "right"
-    
-    // Compléter le bloc de droite
+    BasicBlock *evalRight = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *end = new BasicBlock(cfg, cfg->new_BB_name());
+
+    // Générer le saut conditionnel : si left ≠ 0 on va à end, sinon on évalue right
+    bb->exit_true = end;
+    bb->exit_false = evalRight;
+
+    // Bloc qui évalue right
     cfg->add_bb(evalRight);
     cfg->current_bb = evalRight;
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right)); // Résultat est à droite
-    //evalRight->exit_true = end;
-    
-    // Bloc de fin (si l'une des deux expressions est "vraie", résultat = 1)
+    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
+
+    // Bloc final
     cfg->add_bb(end);
     cfg->current_bb = end;
-    auto setFalse = std::make_unique<IRCopy>(end, result, one); // Par défaut, mettre 1
-    end->add_IRInstr(std::move(setFalse));
-    
+    end->add_IRInstr(std::make_unique<IRCopy>(end, result, one));
+
     return result;
 }
 
-antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx)
-{
-    BasicBlock* currentBB = cfg->current_bb;
 
-    BasicBlock* condBB = new BasicBlock(cfg, cfg->new_BB_name()); 
+antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
+{
+    BasicBlock *currentBB = cfg->current_bb;
+
+    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
     condBB->label += "_cond";
-    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->new_BB_name()); 
+    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
     bodyBB->label += "_body";
-    BasicBlock* exitBB = new BasicBlock(cfg, cfg->new_BB_name());  
+    BasicBlock *exitBB = new BasicBlock(cfg, cfg->new_BB_name());
     exitBB->label += "_exit";
 
     exitBB->exit_true = currentBB->exit_true;
     exitBB->exit_false = currentBB->exit_false;
 
     currentBB->exit_true = condBB;
-    
+
     condBB->exit_false = exitBB;
     condBB->exit_true = bodyBB;
     bodyBB->exit_true = condBB;
@@ -526,14 +680,13 @@ antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext* ctx)
     cfg->current_bb = condBB;
     std::string cond = std::any_cast<std::string>(this->visit(ctx->expr()));
     condBB->test_var_name = cond;
-    
+
     cfg->add_bb(bodyBB);
     cfg->current_bb = bodyBB;
     this->visit(ctx->block());
-    
+
     cfg->add_bb(exitBB);
     cfg->current_bb = exitBB;
-    
+
     return std::string("0");
 }
-
