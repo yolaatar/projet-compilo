@@ -100,25 +100,27 @@ std::string CFG::IR_reg_to_asm(std::string name) {
         stv.writeError("Codegen backend not initialized!");
         return "0";
     }
-    // Si c'est déjà un registre, le retourner directement.
     if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && std::isdigit(name[1]))
         return name;
     
-    // Recherche par la clé (nom original) dans la chaîne des scopes.
+    // Recherche par uniqueName dans la hiérarchie
     Scope* scope = stv.currentScope;
     while (scope != nullptr) {
-        if (scope->symbols.find(name) != scope->symbols.end()) {
-            int off = scope->symbols[name].offset;
-            if (codegenBackend->getArchitecture() == "arm64")
-                return "[x29, #" + std::to_string(off) + "]";
-            else
-                return std::to_string(off) + "(%rbp)";
+        for (const auto &entry : scope->symbols) {
+            if (entry.second.uniqueName == name) {
+                int off = entry.second.offset;
+                if (codegenBackend->getArchitecture() == "arm64")
+                    return "[x29, #" + std::to_string(off) + "]";
+                else
+                    return std::to_string(off) + "(%rbp)";
+            }
         }
         scope = scope->parent;
     }
     stv.writeError("Variable " + name + " non trouvée");
     return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
 }
+
 
 
 void CFG::gen_asm(std::ostream &o) {
@@ -159,10 +161,12 @@ SymbolTableVisitor &CFG::get_stv() {
     return stv;
 }
 
+// Dans CFG::create_new_tempvar()
 std::string CFG::create_new_tempvar() {
-    return stv.createNewTemp();
+    // Utiliser le décalage actuel du scope
+    std::string temp = stv.createNewTemp(); // S'assurer que cela génère un nom unique
+    return temp;
 }
-
 std::string CFG::new_BB_name() {
     return ".LBB" + std::to_string(nextBBnumber++);
 }

@@ -1,22 +1,23 @@
 #include "SymbolTableVisitor.h"
-#include "IR.h"
+#include "IR.h"  // Pour INTSIZE et éventuelles dépendances
 #include <iostream>
 #include <cstdlib>
-#include <string>
 
-// ------------------------------------------------------
-// Constructeur : création du scope global
-// ------------------------------------------------------
 SymbolTableVisitor::SymbolTableVisitor() {
     currentScope = new Scope;
-    currentScope->offset = INTSIZE;  // Par exemple, 4
+    currentScope->offset = INTSIZE;  // Par exemple, 4 octets
     currentScope->parent = nullptr;
-    // functionTable doit être initialisé par l'appelant
+    currentScope->level = 1;         // Scope global = niveau 1
+    functionTable = nullptr;
+    tempSuffixCounter = 1;
 }
 
-// ------------------------------------------------------
-// Méthode utilitaire pour accéder au scope global
-// ------------------------------------------------------
+int SymbolTableVisitor::getScopeLevel(Scope* scope) const {
+    return scope ? scope->level : 0;
+}
+
+
+// Renvoie le scope global (le plus haut niveau)
 Scope* SymbolTableVisitor::getGlobalScope() const {
     Scope* scope = currentScope;
     while (scope && scope->parent != nullptr) {
@@ -25,13 +26,122 @@ Scope* SymbolTableVisitor::getGlobalScope() const {
     return scope;
 }
 
-// ------------------------------------------------------
-// VISITE DES AFFECTATIONS
-// ------------------------------------------------------
+std::string SymbolTableVisitor::addToSymbolTable(const std::string &s) {
+    // Pour les temporaires dont le nom commence par '!'
+    if (!s.empty() && s[0] == '!') {
+        if (currentScope->symbols.find(s) != currentScope->symbols.end()) {
+            writeWarning(s + " is already defined in this scope");
+            return currentScope->symbols[s].uniqueName;
+        }
+        int varOffset = currentScope->offset;
+        currentScope->offset += INTSIZE;
+        SymbolTableStruct symbol;
+        symbol.offset = -varOffset;
+        symbol.uniqueName = s;
+        symbol.initialised = false;
+        symbol.used = false;
+        currentScope->symbols[s] = symbol;
+        std::cerr << "[DEBUG] Added temporary: " << s << "\n";
+        return s;
+    }
+    // Pour une variable utilisateur, la clé est le nom d'origine
+    if (currentScope->symbols.find(s) != currentScope->symbols.end()) {
+        writeWarning(s + " is already defined in this scope");
+        return currentScope->symbols[s].uniqueName;
+    }
+    int level = getScopeLevel(currentScope);  // Par exemple, 1 pour global, 2 pour un bloc interne
+    std::string uniqueName = "s" + std::to_string(level) + "_" + s;
+    
+    int varOffset = currentScope->offset;
+    currentScope->offset += INTSIZE;
+    
+    SymbolTableStruct symbol;
+    symbol.offset = -varOffset;
+    symbol.uniqueName = uniqueName;
+    symbol.initialised = false;
+    symbol.used = false;
+    
+    currentScope->symbols[s] = symbol;
+    std::cerr << "[DEBUG] Added variable: " << s << " -> " << uniqueName << " in scope level " << level << "\n";
+    return uniqueName;
+}
+
+std::string SymbolTableVisitor::getUniqueName(const std::string &s) const {
+    Scope* scope = currentScope;
+    while (scope != nullptr) {
+        auto it = scope->symbols.find(s);
+        if (it != scope->symbols.end()) {
+            std::cerr << "[DEBUG] getUniqueName: found \"" << s << "\" -> " 
+                      << it->second.uniqueName << " in scope level " << getScopeLevel(scope) << "\n";
+            return it->second.uniqueName;
+        }
+        scope = scope->parent;
+    }
+    // Si non trouvé dans les scopes actifs, consulter aggregatedSymbols.
+    auto itGlobal = aggregatedSymbols.find(s);
+    if (itGlobal != aggregatedSymbols.end()) {
+        std::cerr << "[DEBUG] getUniqueName (from aggregated): found \"" << s << "\" -> " 
+                  << itGlobal->second.uniqueName << "\n";
+        return itGlobal->second.uniqueName;
+    }
+    std::cerr << "[ERROR] getUniqueName: \"" << s << "\" is not defined\n";
+    exit(EXIT_FAILURE);
+    return "";
+}
+
+
+std::string SymbolTableVisitor::createNewTemp() {
+    std::string prefix = codegenBackend->getTempPrefix();
+    std::string temp = prefix + std::to_string(currentScope->offset);
+    // Pour un temporaire, on le garde tel quel
+    return addToSymbolTable(temp);
+}
+
+void SymbolTableVisitor::checkSymbolTable() {
+    Scope* global = getGlobalScope();
+    for (auto const& item : global->symbols) {
+        if (!item.second.initialised || !item.second.used) {
+            writeWarning(item.first + " is defined but not used");
+        }
+    }
+}
+
+void SymbolTableVisitor::writeWarning(const std::string &message) {
+    warning++;
+    std::cerr << "[WARNING] " << message << "\n";
+}
+
+void SymbolTableVisitor::writeError(const std::string &message) {
+    error++;
+    std::cerr << "[ERROR] " << message << "\n";
+}
+
+void SymbolTableVisitor::enterScope() {
+    Scope* newScope = new Scope;
+    newScope->parent = currentScope;
+    newScope->offset = currentScope->offset;
+    newScope->level = currentScope->level + 1;
+    currentScope = newScope;
+    std::cerr << "[DEBUG] Enter new scope (level " << newScope->level << ")" << "\n";
+}
+
+void SymbolTableVisitor::exitScope() {
+    // Avant de détruire le scope, fusionnez ses symboles dans la table globale (ou agrégée)
+    for (const auto &entry : currentScope->symbols) {
+         aggregatedSymbols[entry.first] = entry.second;
+    }
+    Scope* oldScope = currentScope;
+    if (currentScope != nullptr) {
+        currentScope = currentScope->parent;
+        delete oldScope;
+        std::cerr << "[DEBUG] Exit scope" << "\n";
+    }
+}
+
+
 antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
     std::string varName = ctx->ID()->getText();
     bool found = false;
-    // Recherche dans la chaîne des scopes
     Scope* scope = currentScope;
     while (scope != nullptr) {
         if (scope->symbols.find(varName) != scope->symbols.end()) {
@@ -49,23 +159,18 @@ antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext 
     return 0;
 }
 
-// ------------------------------------------------------
-// VISITE DU PROGRAMME (fonction principale)
-// ------------------------------------------------------
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
-    // Le scope global est déjà créé dans le constructeur.
-    currentScope->offset = INTSIZE;  // Réinitialisation si nécessaire
+    currentScope->offset = INTSIZE;  // Réinitialisation éventuelle du global
     
     std::string funcName = ctx->ID()->getText();
     std::string returnType = ctx->type()->getText();
     std::vector<std::string> params;
 
-    // Ajout des paramètres dans le scope global
     if (ctx->decl_params()) {
         for (auto param : ctx->decl_params()->param()) {
             std::string paramName = param->ID()->getText();
             addToSymbolTable(paramName);
-            currentScope->symbols[paramName].initialised = true; // Les paramètres sont initialisés.
+            currentScope->symbols[paramName].initialised = true;
             params.push_back("int");
         }
     }
@@ -78,142 +183,39 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
         visit(inst);
     }
     
-    // Affichage global pour debug
     printGlobalSymbolTable(std::cerr);
     return 0;
 }
 
-// ------------------------------------------------------
-// VISITE DU RETURN
-// ------------------------------------------------------
 antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx) {
-    if (ctx->expr()) {
+    if (ctx->expr())
         visit(ctx->expr());
-    }
     checkSymbolTable();
     return 0;
 }
 
-// ------------------------------------------------------
-// AJOUT DANS LA TABLE DES SYMBOLES (scope courant)
-// ------------------------------------------------------
-
-std::string SymbolTableVisitor::addToSymbolTable(const std::string &s) {
-    // Vérifier dans le scope courant si le symbole existe déjà
-    if (currentScope->symbols.find(s) != currentScope->symbols.end()) {
-        writeWarning(s + " is already defined in this scope");
-        return currentScope->symbols[s].uniqueName; // On renvoie ce qui a été stocké (probablement "a")
-    }
-    // Ici, le uniqueName est simplement le nom original
-    std::string uniqueName = s; // On conserve le nom
-    
-    // Allouer l'offset pour ce symbole dans le scope courant
-    int varOffset = currentScope->offset;
-    currentScope->offset += INTSIZE;
-    SymbolTableStruct symbol;
-    symbol.offset = -varOffset;  // Convention négative pour la pile
-    symbol.uniqueName = uniqueName; // On stocke juste "a"
-    symbol.initialised = false;
-    symbol.used = false;
-    // Insérer dans le scope courant sous la clé "s"
-    currentScope->symbols[s] = symbol;
-    return uniqueName;
-}
-
-
-
-
-// ------------------------------------------------------
-// GÉNÉRATION DE TEMPORAIRE
-// ------------------------------------------------------
-std::string SymbolTableVisitor::createNewTemp() {
-    std::string prefix = codegenBackend->getTempPrefix();
-    // Utilisation du compteur d'offset du scope courant
-    std::string temp = prefix + std::to_string(currentScope->offset);
-    addToSymbolTable(temp);
-    return temp;
-}
-
-// ------------------------------------------------------
-// VÉRIFICATION DE LA TABLE DES SYMBOLES (global)
-// ------------------------------------------------------
-void SymbolTableVisitor::checkSymbolTable() {
-    // On vérifie le scope global
-    Scope* global = getGlobalScope();
-    for (auto const& item : global->symbols) {
-        if (!item.second.initialised || !item.second.used) {
-            writeWarning(item.first + " is defined but not used");
-        }
-    }
-}
-
-// ------------------------------------------------------
-// FONCTIONS D'ALERTES
-// ------------------------------------------------------
-void SymbolTableVisitor::writeWarning(const std::string &message) {
-    warning++;
-    std::cerr << "[WARNING] " << message << "\n";
-}
-
-void SymbolTableVisitor::writeError(const std::string &message) {
-    error++;
-    std::cerr << "[ERROR] " << message << "\n";
-}
-
-// ------------------------------------------------------
-// GESTION DES SCOPES : Entrée et Sortie
-// ------------------------------------------------------
-void SymbolTableVisitor::enterScope() {
-    Scope* newScope = new Scope;
-    newScope->parent = currentScope;
-    // On reprend l'offset du parent pour l'allocation locale.
-    newScope->offset = currentScope->offset;
-    currentScope = newScope;
-    std::cerr << "[DEBUG] Enter new scope" << "\n";
-}
-
-void SymbolTableVisitor::exitScope() {
-    Scope* oldScope = currentScope;
-    if (currentScope != nullptr) {
-        currentScope = currentScope->parent;
-        delete oldScope;
-        std::cerr << "[DEBUG] Exit scope" << "\n";
-    }
-}
-
-// ------------------------------------------------------
-// VISITE D'UN BLOCK (Block)
-// ------------------------------------------------------
 antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
-    enterScope();
+    enterScope(); // Nouveau scope interne (niveau 2)
     printCurrentScope(std::cerr);
     for (auto child : ctx->children) {
-        this->visit(child);
+        this->visit(child);  // Génère l'IR dans le scope interne
     }
+    // Ici, avant exitScope(), le code du bloc interne utilise les symboles du niveau 2 (par ex. s2_a)
     exitScope();
     return 0;
 }
 
-// ------------------------------------------------------
-// VISITE DES DÉCLARATIONS
-// ------------------------------------------------------
+
 antlrcpp::Any SymbolTableVisitor::visitDecl(ifccParser::DeclContext *ctx) {
     std::string varName = ctx->ID()->getText();
-    // Récupérer le nom issu de addToSymbolTable, qui est tout simplement "a"
-    std::string unique = addToSymbolTable(varName);
+    std::string unique = addToSymbolTable(varName); // Par exemple, "s1_a" ou "s2_a"
     if (ctx->expr() != nullptr) {
-        currentScope->symbols[varName].initialised = true;
+        currentScope->symbols[varName].initialised = true;  // Inscrit dans le scope courant (clé = nom original)
         visit(ctx->expr());
     }
     return unique;
 }
 
-
-
-
-// ------------------------------------------------------
-// VISITE DES IDEXPR (Accès à une variable)
-// ------------------------------------------------------
 antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
     std::string varName = ctx->ID()->getText();
     Scope* scope = currentScope;
@@ -225,7 +227,7 @@ antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
                 exit(EXIT_FAILURE);
             }
             info.used = true;
-            return info.uniqueName;  // Retourne "a"
+            return info.uniqueName;  // Par exemple "s1_a" ou "s2_a"
         }
         scope = scope->parent;
     }
@@ -234,11 +236,6 @@ antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
     return "";
 }
 
-
-
-// ------------------------------------------------------
-// AFFICHAGE POUR DEBUG
-// ------------------------------------------------------
 void SymbolTableVisitor::printCurrentScope(std::ostream &os) const {
     os << "==== Current Scope Symbol Table ====\n";
     for (const auto &entry : currentScope->symbols) {
@@ -258,4 +255,4 @@ void SymbolTableVisitor::printGlobalSymbolTable(std::ostream &os) const {
            << ", unique name: " << entry.second.uniqueName << "\n";
     }
     os << "=============================\n";
-}  
+}

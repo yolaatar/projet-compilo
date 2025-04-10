@@ -6,7 +6,9 @@
 #include <any>
 
 using namespace std;
-
+IRGenVisitor::IRGenVisitor() 
+    : cfg(nullptr), backend(nullptr), functionTable(nullptr), hasReturned(false), tempCpt(1) {
+}
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'instruction de retour : "return expr ;"
 ///////////////////////////////////////////////////////////////////////////////
@@ -25,28 +27,21 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
 // visitDecl : Traitement d'une déclaration "int ID ('=' expr)?".
 ///////////////////////////////////////////////////////////////////////////////
 
+
 antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx) {
-    // On prend le nom tel quel depuis l'AST
     std::string varName = ctx->ID()->getText();
-    
-    // On l'enregistre dans la table des symboles.
-    // La méthode addToSymbolTable stocke le symbole dans le scope courant en utilisant la clé "varName"
-    // Ici, nous ne modifions pas le nom et retournons le nom d'origine.
-    std::string storedName = cfg->get_stv().addToSymbolTable(varName);
+    std::string uniqueName = cfg->get_stv().addToSymbolTable(varName);
     
     BasicBlock *bb = cfg->current_bb;
     if (ctx->expr() != nullptr) {
-        std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
-        // Utiliser varName (nom original) dans l'instruction IR
-        auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
-        bb->add_IRInstr(std::move(instr));
+        std::string exprTemp = std::any_cast<std::string>(visit(ctx->expr()));
+        bb->add_IRInstr(make_unique<IRCopy>(bb, uniqueName, exprTemp));
     } else {
-        auto instr = std::make_unique<IRLdConst>(bb, varName, "0");
-        bb->add_IRInstr(std::move(instr));
+        // Initialisation par défaut à 0
+        bb->add_IRInstr(make_unique<IRLdConst>(bb, uniqueName, "0"));
     }
-    return varName;
+    return uniqueName;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une constante (ConstExpr)
@@ -65,13 +60,22 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une variable (IdExpr)
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
-    std::string varName = ctx->ID()->getText();
-    // On peut appeler la méthode du SymbolTableVisitor pour vérifier et récupérer le symbole.
-    // Ici, comme le nom stocké est le même que l'original, cela renverra "a".
-    return cfg->get_stv().visitIdExpr(ctx);
+
+
+antlrcpp::Any IRGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+    cfg->get_stv().enterScope();
+    for (auto child : ctx->children) {
+        visit(child);
+    }
+    cfg->get_stv().exitScope();
+    return nullptr;
 }
 
+antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
+    string varName = ctx->ID()->getText();
+    string uniqueName = cfg->get_stv().getUniqueName(varName);
+    return uniqueName; // Retourne le nom unique (s1_a ou s2_a)
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur unaire "-"
@@ -218,20 +222,19 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Affectation
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
-{
+
+antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
     std::string varName = ctx->ID()->getText();
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
-
-    if (varName != exprTemp)
-    { // éviter les copies inutiles
-        auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-
-    return varName;
+    // Récupérer le unique name via getUniqueName
+    std::string unique = cfg->get_stv().getUniqueName(varName);
+    auto instr = std::make_unique<IRCopy>(bb, unique, exprTemp);
+    bb->add_IRInstr(std::move(instr));
+    return unique;
 }
+
+
 
 antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
 {
