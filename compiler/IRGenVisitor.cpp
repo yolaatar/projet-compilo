@@ -12,19 +12,17 @@ using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    BasicBlock *bb = cfg->current_bb;
     if (ctx->expr())
     {
         std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
+        BasicBlock *bb = cfg->current_bb;  // Get the current bb after visiting expr
         auto instr = std::make_unique<IRReturn>(bb, temp);
         bb->add_IRInstr(std::move(instr));
     }
     else
     {
-        // Void return: jump to epilogue
-        ostringstream jumpInstr;
-        jumpInstr << "    jmp " << cfg->epilogueLabel << "\n";
-        auto instr = std::make_unique<IRBranch>(bb, "", jumpInstr.str(), "");
+        BasicBlock *bb = cfg->current_bb;
+        auto instr = std::make_unique<IRBranch>(bb, "", cfg->epilogueLabel, "");
         bb->add_IRInstr(std::move(instr));
     }
 
@@ -467,28 +465,31 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 {
-    std::string result = cfg->create_new_tempvar();
+    BasicBlock* evalLeftBB = cfg->current_bb;
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string zero = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    bb->add_IRInstr(std::make_unique<IRLdConst>(bb, zero, "0"));
-    // Création des blocs
-    BasicBlock* evalRight = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* end = new BasicBlock(cfg, cfg->new_BB_name());
-    // Générer un saut conditionnel
-    bb->exit_true = evalRight;
-    bb->exit_false = end;
-    // Compléter le bloc de droite
-    cfg->add_bb(evalRight);
-    cfg->current_bb = evalRight;
+    BasicBlock* afterLeftBB = cfg->current_bb;
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock* setFalseBB = new BasicBlock(cfg, cfg->new_BB_name() + "_setFalse");
+    BasicBlock* evalRightBB = new BasicBlock(cfg, cfg->new_BB_name() + "_evalRight");
+    BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name() + "_merge");
+    
+    afterLeftBB->test_var_name = left;
+    afterLeftBB->exit_true = evalRightBB;  // If left is true, evaluate right
+    afterLeftBB->exit_false = setFalseBB;  // If left is false, set result to 0
+    
+    cfg->add_bb(setFalseBB);
+    setFalseBB->add_IRInstr(std::make_unique<IRLdConst>(setFalseBB, result, "0"));
+    setFalseBB->exit_true = mergeBB;
+    
+    cfg->add_bb(evalRightBB);
+    cfg->current_bb = evalRightBB;
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
-    //evalRight->exit_true = end;
-    // Bloc de fin
-    cfg->add_bb(end);
-    cfg->current_bb = end;
-    auto setFalse = std::make_unique<IRCopy>(end, result, zero);
-    end->add_IRInstr(std::move(setFalse));
+    evalRightBB->add_IRInstr(std::make_unique<IRCopy>(evalRightBB, result, right));
+    evalRightBB->exit_true = mergeBB;
+    
+    cfg->add_bb(mergeBB);
+    cfg->current_bb = mergeBB;
+    
     return result;
 }
 
@@ -499,32 +500,31 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 
 antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)
 {
-    std::string result = cfg->create_new_tempvar();
+    BasicBlock* evalLeftBB = cfg->current_bb;  // Block before evaluating left
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    std::string one = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    bb->add_IRInstr(std::make_unique<IRLdConst>(bb, one, "1"));
+    BasicBlock* afterLeftBB = cfg->current_bb;  // Block after evaluating left
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock* setTrueBB = new BasicBlock(cfg, cfg->new_BB_name() + "_setTrue");
+    BasicBlock* evalRightBB = new BasicBlock(cfg, cfg->new_BB_name() + "_evalRight");
+    BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name() + "_merge");
     
-    // Création des blocs
-    BasicBlock* evalRight = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* end = new BasicBlock(cfg, cfg->new_BB_name());
+    // Set the conditional jump in the block after left is evaluated
+    afterLeftBB->test_var_name = left;
+    afterLeftBB->exit_true = setTrueBB;
+    afterLeftBB->exit_false = evalRightBB;
     
-    // Générer un saut conditionnel pour "left"
-    bb->exit_true = end;      // Si "left" est vrai, on va directement à la fin
-    bb->exit_false = evalRight;  // Sinon, on évalue l'expression "right"
+    cfg->add_bb(setTrueBB);
+    setTrueBB->add_IRInstr(std::make_unique<IRLdConst>(setTrueBB, result, "1"));
+    setTrueBB->exit_true = mergeBB;
     
-    // Compléter le bloc de droite
-    cfg->add_bb(evalRight);
-    cfg->current_bb = evalRight;
+    cfg->add_bb(evalRightBB);
+    cfg->current_bb = evalRightBB;
     std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right)); // Résultat est à droite
-    //evalRight->exit_true = end;
+    evalRightBB->add_IRInstr(std::make_unique<IRCopy>(evalRightBB, result, right));
+    evalRightBB->exit_true = mergeBB;
     
-    // Bloc de fin (si l'une des deux expressions est "vraie", résultat = 1)
-    cfg->add_bb(end);
-    cfg->current_bb = end;
-    auto setFalse = std::make_unique<IRCopy>(end, result, one); // Par défaut, mettre 1
-    end->add_IRInstr(std::move(setFalse));
+    cfg->add_bb(mergeBB);
+    cfg->current_bb = mergeBB;
     
     return result;
 }
