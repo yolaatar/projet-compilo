@@ -6,6 +6,7 @@ prog : type ID '(' decl_params ')' '{' (decl | inst)* '}' ;
 
 block : '{' (decl | inst)* '}' ;
 
+
 decl_params : ( param (',' param)* )? ;
 param : 'int' ID ;
 

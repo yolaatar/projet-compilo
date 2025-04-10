@@ -73,8 +73,8 @@ int main(int argn, const char **argv)
       cgv.visit(prog);
 
       std::cerr << "Function: " << fname << "\n";
-      // stv.print_symbol_table();
-      // cfg.current_bb->print_instrs();
+        stv.printGlobalSymbolTable();
+        cfg.current_bb->print_instrs();
       cfg.gen_asm(std::cout);
     }
   }

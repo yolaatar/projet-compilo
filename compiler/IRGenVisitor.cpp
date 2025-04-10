@@ -24,22 +24,25 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
 ///////////////////////////////////////////////////////////////////////////////
 // visitDecl : Traitement d'une déclaration "int ID ('=' expr)?".
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
-{
+
+antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx) {
+    // Récupère le nom d'origine depuis l'AST
     std::string varName = ctx->ID()->getText();
+    // Utilise addToSymbolTable pour enregistrer la variable et obtenir le unique name (avec préfixe)
+    std::string storedName = cfg->get_stv().addToSymbolTable(varName);
+    
     BasicBlock *bb = cfg->current_bb;
-    if (ctx->expr() != nullptr)
-    {
-        std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
-        auto instr = std::make_unique<IRCopy>(bb, varName, temp);
-        cfg->current_bb->add_IRInstr(std::move(instr));
+    if (ctx->expr() != nullptr) {
+        std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+        // Utiliser storedName (par exemple "s1_a") dans l'instruction IR
+        auto instr = std::make_unique<IRCopy>(bb, storedName, exprTemp);
+        bb->add_IRInstr(std::move(instr));
+    } else {
+        auto instr = std::make_unique<IRLdConst>(bb, storedName, "0");
+        bb->add_IRInstr(std::move(instr));
     }
-    else
-    {
-        auto instr = std::make_unique<IRLdConst>(bb, varName, "0");
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-    return varName;
+    // Retourne le unique name, qui sera utilisé pour toutes les références ultérieures
+    return storedName;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -59,11 +62,10 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une variable (IdExpr)
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
-{
-    std::string varName = ctx->ID()->getText();
-    return varName; // Retourne une std::string
+antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
+    return cfg->get_stv().visitIdExpr(ctx);
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur unaire "-"
@@ -171,7 +173,8 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     // Étape 3 : calcul du maxOffset pour l'allocation stack
     int minOffset = 0;
-    for (const auto &[_, info] : cfg->get_stv().symbolStack.front())
+    Scope* global = cfg->get_stv().getGlobalScope();
+    for (const auto& [_, info] : global->symbols) {
     {
         if (info.offset < minOffset)
         {
@@ -181,6 +184,7 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     cfg->maxOffset = -minOffset;
 
     return 0;
+}
 }
 
 antlrcpp::Any IRGenVisitor::visitAxiom(ifccParser::AxiomContext *ctx)

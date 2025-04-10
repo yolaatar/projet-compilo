@@ -18,6 +18,7 @@ extern CodeGenBackend* codegenBackend;
 //-----------------------------------------------------
 // Définition de DefFonction
 //-----------------------------------------------------
+
 class DefFonction {
 public:
     DefFonction(const std::string &name, const std::vector<std::string> &params = {})
