@@ -11,22 +11,19 @@ SymbolTableVisitor::SymbolTableVisitor() {
     currentScope = new Scope;
     currentScope->offset = INTSIZE;  // Par exemple, 4
     currentScope->parent = nullptr;
-    currentScope->level = 1; 
     // functionTable doit être initialisé par l'appelant
 }
 
 // ------------------------------------------------------
 // Méthode utilitaire pour accéder au scope global
 // ------------------------------------------------------
-int SymbolTableVisitor::getScopeLevel(Scope* scope) const {
-    int level = 0;
-    while (scope != nullptr) {
-        level++;
+Scope* SymbolTableVisitor::getGlobalScope() const {
+    Scope* scope = currentScope;
+    while (scope && scope->parent != nullptr) {
         scope = scope->parent;
     }
-    return level;
+    return scope;
 }
-
 
 // ------------------------------------------------------
 // VISITE DES AFFECTATIONS
@@ -100,49 +97,28 @@ antlrcpp::Any SymbolTableVisitor::visitReturn_stmt(ifccParser::Return_stmtContex
 // ------------------------------------------------------
 // AJOUT DANS LA TABLE DES SYMBOLES (scope courant)
 // ------------------------------------------------------
+
 std::string SymbolTableVisitor::addToSymbolTable(const std::string &s) {
-    // Si le nom commence par '!', c'est un temporaire : on le conserve tel quel.
-    if (!s.empty() && s[0] == '!') {
-        // Vérifier s'il existe déjà dans le scope courant
-        if (currentScope->symbols.find(s) != currentScope->symbols.end()) {
-            writeWarning(s + " is already defined in this scope");
-            return currentScope->symbols[s].uniqueName;
-        }
-        int varOffset = currentScope->offset;
-        currentScope->offset += INTSIZE;
-        SymbolTableStruct symbol;
-        symbol.offset = -varOffset;
-        symbol.uniqueName = s;
-        symbol.initialised = false;
-        symbol.used = false;
-        currentScope->symbols[s] = symbol;
-        return s;
-    }
-    
-    // Pour les autres noms (variables déclarées par l'utilisateur), on ajoute le préfixe indiquant le niveau de scope.
-    int level = getScopeLevel(currentScope); // Par exemple, global = 1, interne = 2, etc.
-    std::string uniqueName = "s" + std::to_string(level) + "_" + s;
-    
-    // Vérifier si le symbole existe déjà dans le scope courant (en utilisant uniqueName comme clé)
-    if (currentScope->symbols.find(uniqueName) != currentScope->symbols.end()) {
+    // Vérifier dans le scope courant si le symbole existe déjà
+    if (currentScope->symbols.find(s) != currentScope->symbols.end()) {
         writeWarning(s + " is already defined in this scope");
-        return currentScope->symbols[uniqueName].uniqueName;
+        return currentScope->symbols[s].uniqueName; // On renvoie ce qui a été stocké (probablement "a")
     }
+    // Ici, le uniqueName est simplement le nom original
+    std::string uniqueName = s; // On conserve le nom
     
+    // Allouer l'offset pour ce symbole dans le scope courant
     int varOffset = currentScope->offset;
     currentScope->offset += INTSIZE;
-    
     SymbolTableStruct symbol;
     symbol.offset = -varOffset;  // Convention négative pour la pile
-    symbol.uniqueName = uniqueName;
+    symbol.uniqueName = uniqueName; // On stocke juste "a"
     symbol.initialised = false;
     symbol.used = false;
-    
-    // Stocker dans le scope courant sous la clé unique (par exemple "s1_a")
-    currentScope->symbols[uniqueName] = symbol;
+    // Insérer dans le scope courant sous la clé "s"
+    currentScope->symbols[s] = symbol;
     return uniqueName;
 }
-
 
 
 
@@ -152,10 +128,11 @@ std::string SymbolTableVisitor::addToSymbolTable(const std::string &s) {
 // ------------------------------------------------------
 std::string SymbolTableVisitor::createNewTemp() {
     std::string prefix = codegenBackend->getTempPrefix();
+    // Utilisation du compteur d'offset du scope courant
     std::string temp = prefix + std::to_string(currentScope->offset);
-    return addToSymbolTable(temp);
+    addToSymbolTable(temp);
+    return temp;
 }
-
 
 // ------------------------------------------------------
 // VÉRIFICATION DE LA TABLE DES SYMBOLES (global)
@@ -222,10 +199,10 @@ antlrcpp::Any SymbolTableVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 // ------------------------------------------------------
 antlrcpp::Any SymbolTableVisitor::visitDecl(ifccParser::DeclContext *ctx) {
     std::string varName = ctx->ID()->getText();
-    std::string unique = addToSymbolTable(varName); // unique sera par ex. "s1_a" ou "s2_a"
+    // Récupérer le nom issu de addToSymbolTable, qui est tout simplement "a"
+    std::string unique = addToSymbolTable(varName);
     if (ctx->expr() != nullptr) {
-        // Marquer comme initialisée dans le scope courant (avec clé unique)
-        currentScope->symbols[unique].initialised = true;
+        currentScope->symbols[varName].initialised = true;
         visit(ctx->expr());
     }
     return unique;
@@ -239,23 +216,16 @@ antlrcpp::Any SymbolTableVisitor::visitDecl(ifccParser::DeclContext *ctx) {
 // ------------------------------------------------------
 antlrcpp::Any SymbolTableVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
     std::string varName = ctx->ID()->getText();
-    // Recherche par clé. Comme on stocke avec uniqueName, la clé doit être "sX_a".
-    // Il faut parcourir tous les scopes et comparer le nom de base dans le uniqueName.
     Scope* scope = currentScope;
     while (scope != nullptr) {
-        for (const auto &entry : scope->symbols) {
-            // Si le uniqueName se termine par "_" + varName, on considère que c'est la bonne variable.
-            // (Supposons que le format soit "sX_a" et on cherche "a")
-            if (entry.second.uniqueName.size() >= varName.size() &&
-                entry.second.uniqueName.substr(entry.second.uniqueName.size() - varName.size()) == varName) {
-                SymbolTableStruct &info = scope->symbols[entry.first];
-                if (!info.initialised) {
-                    writeError(varName + " is not initialised");
-                    exit(EXIT_FAILURE);
-                }
-                info.used = true;
-                return info.uniqueName;
+        if (scope->symbols.find(varName) != scope->symbols.end()) {
+            SymbolTableStruct &info = scope->symbols[varName];
+            if (!info.initialised) {
+                writeError(varName + " is not initialised");
+                exit(EXIT_FAILURE);
             }
+            info.used = true;
+            return info.uniqueName;  // Retourne "a"
         }
         scope = scope->parent;
     }
@@ -288,13 +258,4 @@ void SymbolTableVisitor::printGlobalSymbolTable(std::ostream &os) const {
            << ", unique name: " << entry.second.uniqueName << "\n";
     }
     os << "=============================\n";
-}
-// Renvoie le scope global (le plus haut niveau de la hiérarchie)
-Scope* SymbolTableVisitor::getGlobalScope() const {
-    Scope* scope = currentScope;
-    while (scope && scope->parent != nullptr) {
-        scope = scope->parent;
-    }
-    return scope;
-}
-
+}  

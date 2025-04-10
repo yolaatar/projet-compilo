@@ -26,24 +26,27 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
 ///////////////////////////////////////////////////////////////////////////////
 
 antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx) {
-    // Récupère le nom d'origine depuis l'AST
+    // On prend le nom tel quel depuis l'AST
     std::string varName = ctx->ID()->getText();
-    // Utilise addToSymbolTable pour enregistrer la variable et obtenir le unique name (avec préfixe)
+    
+    // On l'enregistre dans la table des symboles.
+    // La méthode addToSymbolTable stocke le symbole dans le scope courant en utilisant la clé "varName"
+    // Ici, nous ne modifions pas le nom et retournons le nom d'origine.
     std::string storedName = cfg->get_stv().addToSymbolTable(varName);
     
     BasicBlock *bb = cfg->current_bb;
     if (ctx->expr() != nullptr) {
         std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
-        // Utiliser storedName (par exemple "s1_a") dans l'instruction IR
-        auto instr = std::make_unique<IRCopy>(bb, storedName, exprTemp);
+        // Utiliser varName (nom original) dans l'instruction IR
+        auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
         bb->add_IRInstr(std::move(instr));
     } else {
-        auto instr = std::make_unique<IRLdConst>(bb, storedName, "0");
+        auto instr = std::make_unique<IRLdConst>(bb, varName, "0");
         bb->add_IRInstr(std::move(instr));
     }
-    // Retourne le unique name, qui sera utilisé pour toutes les références ultérieures
-    return storedName;
+    return varName;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une constante (ConstExpr)
@@ -63,6 +66,9 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 // Traitement d'une variable (IdExpr)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
+    std::string varName = ctx->ID()->getText();
+    // On peut appeler la méthode du SymbolTableVisitor pour vérifier et récupérer le symbole.
+    // Ici, comme le nom stocké est le même que l'original, cela renverra "a".
     return cfg->get_stv().visitIdExpr(ctx);
 }
 

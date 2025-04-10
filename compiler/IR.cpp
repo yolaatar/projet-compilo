@@ -8,6 +8,26 @@
 #include <vector>
 #include <memory>
 
+#include "IR.h"
+
+// ----- Définitions des constructeurs et autres fonctions non-inline -------
+
+// Constructeur de DefFonction
+DefFonction::DefFonction(const std::string &name, const std::vector<std::string> &params)
+    : name(name), params(params)
+{
+    // Vous pouvez ajouter du code d'initialisation ici si nécessaire.
+}
+
+// Constructeur de BasicBlock
+BasicBlock::BasicBlock(CFG* cfg, std::string entry_label)
+    : cfg(cfg),
+      label(entry_label + "_" + cfg->ast->name),
+      exit_true(nullptr),
+      exit_false(nullptr)
+{
+    // Vous pouvez ajouter d'autres initialisations si nécessaire.
+}
 
 /**
  * DefFonction
@@ -75,7 +95,6 @@ static bool isNumber(const std::string &s) {
     return true;
 }
 
-
 std::string CFG::IR_reg_to_asm(std::string name) {
     if (!codegenBackend) {
         stv.writeError("Codegen backend not initialized!");
@@ -85,7 +104,7 @@ std::string CFG::IR_reg_to_asm(std::string name) {
     if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && std::isdigit(name[1]))
         return name;
     
-    // Recherche par la clé dans la chaîne des scopes
+    // Recherche par la clé (nom original) dans la chaîne des scopes.
     Scope* scope = stv.currentScope;
     while (scope != nullptr) {
         if (scope->symbols.find(name) != scope->symbols.end()) {
@@ -100,8 +119,6 @@ std::string CFG::IR_reg_to_asm(std::string name) {
     stv.writeError("Variable " + name + " non trouvée");
     return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
 }
-
-
 
 
 void CFG::gen_asm(std::ostream &o) {
