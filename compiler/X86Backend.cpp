@@ -98,23 +98,43 @@ void X86Backend::gen_call(std::ostream &os, const std::string &func) const {
     os << "    call " << func << "\n";
 }
 
-void X86Backend::gen_prologue(std::ostream &os, std::string &name, int Stacksize) const {
+void X86Backend::gen_prologue(std::ostream &os, std::string &name, int stackSize) const {
     os << ".globl " << name << "\n";
     os << name << ":\n";
     os << "    pushq %rbp\n";
-    os << "    movq %rsp, %rbp\n";  
+    os << "    movq %rsp, %rbp\n";
+    if (stackSize > 0) {
+        os << "    subq $" << stackSize << ", %rsp\n";
+    }
 }
 
 void X86Backend::gen_epilogue(std::ostream &os) const {
-    os << "end:\n";
+    os << "    movq %rbp, %rsp\n";  // Restore %rsp
     os << "    popq %rbp\n";
     os << "    ret\n";
 }
 
-void X86Backend::gen_copy(std::ostream &os, const std::string &dest,
-                          const std::string &src) const {
-    os << "    movl " << src << ", %eax\n";
-    os << "    movl %eax, " << dest << "\n";
+void X86Backend::gen_copy(std::ostream &os, const std::string &dest, const std::string &src) const {
+    bool srcIsReg = src[0] == '%';
+    bool destIsReg = dest[0] == '%';
+
+    if (srcIsReg && destIsReg)
+    {
+        os << "    movl " << src << ", " << dest << "\n";
+    }
+    else if (srcIsReg && !destIsReg)
+    {
+        os << "    movl " << src << ", " << dest << "\n";
+    }
+    else if (!srcIsReg && destIsReg)
+    {
+        os << "    movl " << src << ", " << dest << "\n";
+    }
+    else // both are memory
+    {
+        os << "    movl " << src << ", %eax\n";
+        os << "    movl %eax, " << dest << "\n";
+    }
 }
 
 void X86Backend::gen_and(std::ostream &os,

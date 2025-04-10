@@ -12,13 +12,24 @@ using namespace std;
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
-    auto instr = std::make_unique<IRReturn>(bb, temp);
-    bb->add_IRInstr(std::move(instr));
+    if (ctx->expr())
+    {
+        std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
+        auto instr = std::make_unique<IRReturn>(bb, temp);
+        bb->add_IRInstr(std::move(instr));
+    }
+    else
+    {
+        // Void return: jump to epilogue
+        ostringstream jumpInstr;
+        jumpInstr << "    jmp " << cfg->epilogueLabel << "\n";
+        auto instr = std::make_unique<IRBranch>(bb, "", jumpInstr.str(), "");
+        bb->add_IRInstr(std::move(instr));
+    }
 
-    hasReturned = true; // Marque que le return a été rencontré
-    return temp;
+    hasReturned = true;
+    return std::string("");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -145,16 +156,32 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     // Étape 1 : gérer les paramètres
     if (ctx->decl_params())
     {
-        int index = 0;
+        std::string arch = codegenBackend->getArchitecture();
+        std::vector<std::string> paramRegs;
+        if (arch == "arm64")
+        {
+            paramRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
+        }
+        else if (arch == "X86")
+        {
+            paramRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"}; // 32-bit subregisters for 32-bit data
+        }
+        else
+        {
+            std::cerr << "[ERROR] Unsupported architecture: " << arch << "\n";
+            exit(1);
+        }
+
+        size_t index = 0;
         for (auto param : ctx->decl_params()->param())
         {
+            if (index >= paramRegs.size())
+            {
+                std::cerr << "[ERROR] Too many parameters for function\n";
+                exit(1);
+            }
             std::string paramName = param->ID()->getText();
-
-            // Paramètres ARM64 : x0, x1, x2, ..., jusqu'à x7
-            std::string sourceReg = "w" + std::to_string(index++);
-            std::string localSlot = cfg->IR_reg_to_asm(paramName);
-
-            // Génère : str wX, [sp, offset]
+            std::string sourceReg = paramRegs[index++];
             auto instr = std::make_unique<IRCopy>(cfg->current_bb, paramName, sourceReg);
             cfg->current_bb->add_IRInstr(std::move(instr));
         }

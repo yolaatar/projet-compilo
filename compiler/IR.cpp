@@ -66,7 +66,10 @@ void BasicBlock::print_instrs() const
 /**
  * CFG
  */
-CFG::CFG(DefFonction *ast, SymbolTableVisitor &stv) : ast(ast), stv(stv), nextBBnumber(0), current_bb(nullptr) {}
+ CFG::CFG(DefFonction *ast, SymbolTableVisitor &stv)
+ : ast(ast), stv(stv), nextBBnumber(0), current_bb(nullptr) {
+ epilogueLabel = ".Lend_" + ast->name; // Unique epilogue label
+}
 
 void CFG::add_bb(BasicBlock *bb)
 {
@@ -89,29 +92,37 @@ static bool isNumber(const std::string &s)
 
 std::string CFG::IR_reg_to_asm(std::string name)
 {
-    if (!codegenBackend)
+    std::string arch = codegenBackend->getArchitecture();
+    if (arch == "arm64")
     {
-        stv.writeError("Codegen backend not initialized!");
-        return "0";
+        if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && isdigit(name[1]))
+        {
+            return name;
+        }
+    }
+    else if (arch == "X86")
+    {
+        std::unordered_set<std::string> x86Regs = {"%eax", "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
+        if (x86Regs.count(name))
+        {
+            return name;
+        }
     }
 
-    // Bypass if it's a known ARM64 register
-    if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && isdigit(name[1])) {
-        return name;  // C’est déjà un registre
-    }
-
- for (auto it = stv.symbolStack.rbegin(); it != stv.symbolStack.rend(); ++it) {
-        if (it->find(name) != it->end()) {
+    for (auto it = stv.symbolStack.rbegin(); it != stv.symbolStack.rend(); ++it)
+    {
+        if (it->find(name) != it->end())
+        {
             int offset = (*it)[name].offset;
-            if (codegenBackend->getArchitecture() == "arm64")
+            if (arch == "arm64")
                 return "[x29, #" + std::to_string(offset) + "]";
             else
                 return std::to_string(offset) + "(%rbp)";
         }
     }
 
-    stv.writeError("Variable " + name + " non trouvée");
-    return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
+    std::cerr << "[ERROR] Variable '" << name << "' not found in symbol table for " << arch << "\n";
+    return (arch == "arm64") ? "[x29, #0]" : "0(%rbp)";
 }
 
 
@@ -127,7 +138,8 @@ void CFG::gen_asm(std::ostream &o)
     {
         bb->gen_asm(o);
     }
-    gen_asm_epilogue(o);
+    o << epilogueLabel << ":\n";          // Write the unique label
+    codegenBackend->gen_epilogue(o);      // Generate epilogue instructions
 }
 
 void CFG::gen_asm_prologue(std::ostream &o)

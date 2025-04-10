@@ -60,6 +60,7 @@ public:
     DefFonction* ast;
     BasicBlock* current_bb;
     int maxOffset = 0;
+    std::string epilogueLabel;
     bool usesGetChar = false;
     bool usesPutChar = false;
     void add_bb(BasicBlock* bb);

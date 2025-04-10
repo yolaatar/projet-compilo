@@ -11,6 +11,7 @@ std::vector<std::string> IRInstr::getParams()
 void IRReturn::gen_asm(std::ostream &o)
 {
     codegenBackend->gen_return(o, bb->cfg->IR_reg_to_asm(params[0]));
+    o << "    jmp " << bb->cfg->epilogueLabel << "\n"; // Jump to epilogue
 }
 
 void IRLdConst::gen_asm(std::ostream &o)
@@ -80,16 +81,16 @@ void IRCall::gen_asm(std::ostream &o)
     std::vector<std::string> argRegs;
     if (isARM64) {
         argRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
-    } else {
-        argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+    } else { // X86-64
+        argRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
     }
 
     for (size_t i = 0; i < params.size(); ++i)
     {
         if (i >= argRegs.size()) {
-            std::cerr << "[ERROR] Function call with too many arguments (limit: "
+            std::cerr << "[ERROR] Function call '" << funcName << "' with too many arguments (limit: "
                       << argRegs.size() << ").\n";
-            exit(1); // ou ajouter gestion pile plus tard
+            exit(1);
         }
 
         const std::string &src = bb->cfg->IR_reg_to_asm(params[i]);
@@ -207,11 +208,15 @@ void IRGetChar::gen_asm(std::ostream &o)
 
 void IRBranch::gen_asm(std::ostream &o)
 {
-    // On suppose que params[0] contient la condition, params[1] le label "then" et params[2] le label "else"
-    // Ici, les labels devraient déjà être locaux (commençant par un point)
-    codegenBackend->gen_branch(o,
-                               bb->cfg->IR_reg_to_asm(params[0]),
-                               params[1], // doit être ".BBX"
-                               params[2]  // doit être ".BBY"
-    );
+    if (params[0].empty()) // Unconditional jump
+    {
+        o << "    jmp " << params[1] << "\n";
+    }
+    else
+    {
+        codegenBackend->gen_branch(o,
+                                   bb->cfg->IR_reg_to_asm(params[0]),
+                                   params[1],
+                                   params[2]);
+    }
 }
