@@ -16,12 +16,15 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
     std::string temp;
     BasicBlock *bb = cfg->current_bb;
 
-    if (valAny.type() == typeid(int)) {
+    if (valAny.type() == typeid(int))
+    {
         int val = std::any_cast<int>(valAny);
         temp = cfg->create_new_tempvar();
         bb->add_IRInstr(std::make_unique<IRLdConst>(bb, temp, std::to_string(val)));
         std::cerr << "[FOLD RETURN] return " << val << "\n";
-    } else {
+    }
+    else
+    {
         temp = std::any_cast<std::string>(valAny);
     }
 
@@ -29,7 +32,6 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
     hasReturned = true;
     return temp;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // visitDecl : Traitement d'une déclaration "int ID ('=' expr)?".
@@ -71,9 +73,8 @@ antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 {
-    return std::stoi(ctx->CONST()->getText());  // retourne directement un entier ✅
+    return std::stoi(ctx->CONST()->getText()); // retourne directement un entier ✅
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une variable (IdExpr)
@@ -81,11 +82,7 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
-    if (constMap.find(varName) != constMap.end())
-    {
-        return constMap[varName]; // Propagation directe
-    }
-    return varName; // Pas une constante, retourne le nom
+    return varName;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -94,6 +91,13 @@ antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx)
 {
     auto val = visit(ctx->expr());
+
+    if (val.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(val);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            val = constMap[var];
+    }
 
     if (val.type() == typeid(int))
     {
@@ -113,40 +117,78 @@ antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx)
     return result;
 }
 
-
 antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext *ctx)
 {
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
-    std::string op = ctx->op->getText();
 
+    // Propagation via constMap si besoin
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
+
+    std::string op = ctx->op->getText();
     bool isLeftConst = leftAny.type() == typeid(int);
     bool isRightConst = rightAny.type() == typeid(int);
 
-    if (isLeftConst && isRightConst)
+    if (allowConstProp && isLeftConst && isRightConst)
     {
         int l = std::any_cast<int>(leftAny);
         int r = std::any_cast<int>(rightAny);
         bool res = false;
 
-        if (op == "<") res = l < r;
-        else if (op == "<=") res = l <= r;
-        else if (op == ">") res = l > r;
-        else if (op == ">=") res = l >= r;
+        if (op == "<")
+            res = l < r;
+        else if (op == "<=")
+            res = l <= r;
+        else if (op == ">")
+            res = l > r;
+        else if (op == ">=")
+            res = l >= r;
 
-        std::cerr << "[FOLD] " << l << " " << op << " " << r << " => " << res << "\n";
+        std::cerr << "[FOLD COMP] " << l << " " << op << " " << r << " = " << res << "\n";
         return static_cast<int>(res);
     }
 
-    std::string left = isLeftConst ? std::to_string(std::any_cast<int>(leftAny)) : std::any_cast<std::string>(leftAny);
-    std::string right = isRightConst ? std::to_string(std::any_cast<int>(rightAny)) : std::any_cast<std::string>(rightAny);
+    std::string left, right;
+
+    // Si gauche est une constante mais pas foldée, on génère un LdConst
+    if (isLeftConst)
+    {
+        int val = std::any_cast<int>(leftAny);
+        left = cfg->create_new_tempvar();
+        cfg->current_bb->add_IRInstr(std::make_unique<IRLdConst>(cfg->current_bb, left, std::to_string(val)));
+    }
+    else
+    {
+        left = std::any_cast<std::string>(leftAny);
+    }
+
+    if (isRightConst)
+    {
+        int val = std::any_cast<int>(rightAny);
+        right = cfg->create_new_tempvar();
+        cfg->current_bb->add_IRInstr(std::make_unique<IRLdConst>(cfg->current_bb, right, std::to_string(val)));
+    }
+    else
+    {
+        right = std::any_cast<std::string>(rightAny);
+    }
+
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-
     bb->add_IRInstr(std::make_unique<IRComp>(bb, result, left, right, op));
     return result;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Expression multiplicative (*, /, %)
@@ -156,6 +198,21 @@ antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx)
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
     std::string op = ctx->op->getText();
+
+    // Détection et remplacement si la variable est constante
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
 
     bool leftIsConst = leftAny.type() == typeid(int);
     bool rightIsConst = rightAny.type() == typeid(int);
@@ -172,7 +229,8 @@ antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx)
             folded = lhs / rhs;
         else if (op == "%" && rhs != 0)
             folded = lhs % rhs;
-        else {
+        else
+        {
             std::cerr << "[FOLD-ERROR] Division/modulo par zéro dans une expression constante.\n";
             folded = 0; // Valeur par défaut sécurisée
         }
@@ -194,14 +252,14 @@ antlrcpp::Any IRGenVisitor::visitMulDivExpr(ifccParser::MulDivExprContext *ctx)
         bb->add_IRInstr(std::make_unique<IRDiv>(bb, result, left, right));
     else if (op == "%")
         bb->add_IRInstr(std::make_unique<IRMod>(bb, result, left, right));
-    else {
+    else
+    {
         std::cerr << "[ERROR] Opérateur inconnu dans MulDivExpr: " << op << "\n";
         exit(1);
     }
 
     return result;
 }
-
 
 std::string IRGenVisitor::gen_const(int value)
 {
@@ -276,8 +334,16 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 {
     auto exprVal = this->visit(ctx->expr());
 
+    if (exprVal.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(exprVal);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            exprVal = constMap[var];
+    }
+
     // 🔍 Propagation de constante si possible
-    if (exprVal.type() == typeid(int)) {
+    if (exprVal.type() == typeid(int))
+    {
         int val = std::any_cast<int>(exprVal);
         return (val == 0) ? 1 : 0;
     }
@@ -289,14 +355,31 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
     return result;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Affectation
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
+    std::cerr << "[ASSIGN] " << varName << " = " << ctx->expr()->getText() << std::endl;
+
+    // 🛑 Si RHS utilise la variable → on désactive la propagation avant la visite
+    bool usesSelf = ctx->expr()->getText().find(varName) != std::string::npos;
+    bool prev = allowConstProp;
+    if (usesSelf)
+    {
+        std::cerr << "[CONSTMAP INVALIDATE] RHS uses " << varName << ", we remove it from constMap\n";
+        constMap.erase(varName);
+        allowConstProp = false;
+    }
+
     auto val = visit(ctx->expr());
+
+    if (usesSelf)
+        allowConstProp = prev;
+
+    std::cerr << "[VAL] type = " << (val.type() == typeid(int) ? "int" : "string") << std::endl;
+
     BasicBlock *bb = cfg->current_bb;
 
     if (val.type() == typeid(int))
@@ -309,7 +392,7 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
     else
     {
         std::string exprTemp = std::any_cast<std::string>(val);
-        constMap.erase(varName); // plus une constante connue
+        constMap.erase(varName);
         if (varName != exprTemp)
         {
             bb->add_IRInstr(std::make_unique<IRCopy>(bb, varName, exprTemp));
@@ -332,6 +415,24 @@ antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx)
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
 
+    std::cerr << "[AddSubExpr] left = " << ctx->expr(0)->getText()
+              << ", right = " << ctx->expr(1)->getText()
+              << ", allowConstProp = " << allowConstProp << std::endl;
+
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
+
     bool leftIsConst = leftAny.type() == typeid(int);
     bool rightIsConst = rightAny.type() == typeid(int);
 
@@ -343,13 +444,36 @@ antlrcpp::Any IRGenVisitor::visitAddSubExpr(ifccParser::AddSubExprContext *ctx)
         std::cerr << "[FOLD] " << lhs << " " << ctx->op->getText() << " " << rhs << " = " << folded << "\n";
         return folded;
     }
-    std::string left = leftIsConst
-                           ? gen_const(std::any_cast<int>(leftAny))
-                           : std::any_cast<std::string>(leftAny);
 
-    std::string right = rightIsConst
-                            ? gen_const(std::any_cast<int>(rightAny))
-                            : std::any_cast<std::string>(rightAny);
+    std::string left, right;
+
+    if (leftIsConst)
+    {
+        left = gen_const(std::any_cast<int>(leftAny));
+    }
+    else if (leftAny.type() == typeid(std::string))
+    {
+        left = std::any_cast<std::string>(leftAny);
+    }
+    else
+    {
+        std::cerr << "[ERROR] Unexpected leftAny type in AddSubExpr: " << leftAny.type().name() << "\n";
+        exit(1);
+    }
+
+    if (rightIsConst)
+    {
+        right = gen_const(std::any_cast<int>(rightAny));
+    }
+    else if (rightAny.type() == typeid(std::string))
+    {
+        right = std::any_cast<std::string>(rightAny);
+    }
+    else
+    {
+        std::cerr << "[ERROR] Unexpected rightAny type in AddSubExpr: " << rightAny.type().name() << "\n";
+        exit(1);
+    }
 
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
@@ -369,6 +493,20 @@ antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext *ctx)
 {
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
+
+    // Détection et remplacement si la variable est constante
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
 
     bool leftConst = leftAny.type() == typeid(int);
     bool rightConst = rightAny.type() == typeid(int);
@@ -395,7 +533,6 @@ antlrcpp::Any IRGenVisitor::visitEgalExpr(ifccParser::EgalExprContext *ctx)
     return result;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // XOR bit-à-bit
 ///////////////////////////////////////////////////////////////////////////////
@@ -403,6 +540,20 @@ antlrcpp::Any IRGenVisitor::visitOuExcExpr(ifccParser::OuExcExprContext *ctx)
 {
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
+
+    // Détection et remplacement si la variable est constante
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
 
     if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
     {
@@ -483,6 +634,20 @@ antlrcpp::Any IRGenVisitor::visitOuIncExpr(ifccParser::OuIncExprContext *ctx)
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
 
+    // Détection et remplacement si la variable est constante
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
+
     if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
     {
         int lhs = std::any_cast<int>(leftAny);
@@ -505,6 +670,20 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
     auto leftAny = visit(ctx->expr(0));
     auto rightAny = visit(ctx->expr(1));
 
+    // Détection et remplacement si la variable est constante
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (allowConstProp && constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
+
     if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
     {
         int lhs = std::any_cast<int>(leftAny);
@@ -524,14 +703,25 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-
-    // Conserver le bloc courant
     BasicBlock *currentBB = cfg->current_bb;
 
-    // 1. Évaluer la condition et obtenir son temporary
-    currentBB->test_var_name = std::any_cast<std::string>(this->visit(ctx->expr()));
+    // 🔧 Corrigé : cast sécurisé avec propagation constante
+    bool prev = allowConstProp;
+    allowConstProp = false;
+    antlrcpp::Any condAny = this->visit(ctx->expr());
+    allowConstProp = prev;
+    if (condAny.type() == typeid(int))
+    {
+        int value = std::any_cast<int>(condAny);
+        std::string constVar = cfg->create_new_tempvar();
+        cfg->current_bb->add_IRInstr(std::make_unique<IRLdConst>(cfg->current_bb, constVar, std::to_string(value)));
+        currentBB->test_var_name = constVar;
+    }
+    else
+    {
+        currentBB->test_var_name = std::any_cast<std::string>(condAny);
+    }
 
-    // 2. Créer les BasicBlocks pour la branche then, la branche else et le bloc de fusion (merge) pour cet if
     BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
     thenBB->label += "_then";
     BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
@@ -549,20 +739,16 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
     elseBB->exit_false = mergeBB;
 
     cfg->current_bb = thenBB;
-
-    // 4. Générer le code pour la branche then.
     cfg->add_bb(thenBB);
-    this->visit(ctx->block(0)); // Traiter le bloc then
+    this->visit(ctx->block(0));
 
-    // 5. Générer le code pour la branche else.
     cfg->add_bb(elseBB);
     cfg->current_bb = elseBB;
     if (ctx->block().size() > 1)
     {
-        this->visit(ctx->block(1)); // Traiter le bloc else s'il existe
+        this->visit(ctx->block(1));
     }
 
-    // 6. Ajouter le bloc de fusion et le définir comme bloc courant
     cfg->add_bb(mergeBB);
     cfg->current_bb = mergeBB;
 
@@ -574,19 +760,57 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext *ctx)
 {
+    bool previous = allowConstProp;
+    allowConstProp = false;
+    auto leftAny = visit(ctx->expr(0));
+    allowConstProp = previous;
+
+    previous = allowConstProp;
+    allowConstProp = false;
+    auto rightAny = visit(ctx->expr(1));
+    allowConstProp = previous;
+
+    // 🔁 Propagation si constante connue
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
+
+    // 🔥 Fold si les deux sont des constantes
+    if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
+    {
+        int l = std::any_cast<int>(leftAny);
+        int r = std::any_cast<int>(rightAny);
+        int res = (l != 0) && (r != 0) ? 1 : 0;
+        std::cerr << "[FOLD &&] " << l << " && " << r << " = " << res << "\n";
+        return res;
+    }
+
+    // ⚡ Fold court-circuit gauche == 0
+    if (leftAny.type() == typeid(int))
+    {
+        int l = std::any_cast<int>(leftAny);
+        if (l == 0)
+        {
+            std::cerr << "[FOLD &&] " << l << " && ? = 0\n";
+            return 0;
+        }
+    }
+
+    // Génération IR
     BasicBlock *bb = cfg->current_bb;
-
-    auto leftAny = this->visit(ctx->expr(0));
-    bool leftIsConst = leftAny.type() == typeid(int);
-    std::string left = leftIsConst ? std::to_string(std::any_cast<int>(leftAny))
-                                   : std::any_cast<std::string>(leftAny);
-
-    auto rightAny = this->visit(ctx->expr(1));
-    bool rightIsConst = rightAny.type() == typeid(int);
-    std::string right = rightIsConst ? std::to_string(std::any_cast<int>(rightAny))
-                                     : std::any_cast<std::string>(rightAny);
-
     std::string result = cfg->create_new_tempvar();
+    std::string left = leftAny.type() == typeid(int)
+                           ? std::to_string(std::any_cast<int>(leftAny))
+                           : std::any_cast<std::string>(leftAny);
     std::string zero = cfg->create_new_tempvar();
     bb->add_IRInstr(std::make_unique<IRLdConst>(bb, zero, "0"));
 
@@ -594,23 +818,28 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext *ctx)
     BasicBlock *evalRight = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *end = new BasicBlock(cfg, cfg->new_BB_name());
 
-    // Générer les branches
     bb->exit_true = evalRight;
     bb->exit_false = end;
+    bb->test_var_name = left;
 
-    // Corps du bloc right
+    // ------ Bloc droite ------
     cfg->add_bb(evalRight);
     cfg->current_bb = evalRight;
-    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
 
-    // Bloc de fin
+    std::string right = rightAny.type() == typeid(int)
+                            ? std::to_string(std::any_cast<int>(rightAny))
+                            : std::any_cast<std::string>(rightAny);
+
+    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
+    evalRight->exit_true = end;
+
+    // ------ Bloc de fin ------
     cfg->add_bb(end);
     cfg->current_bb = end;
     end->add_IRInstr(std::make_unique<IRCopy>(end, result, zero));
 
     return result;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "while"
@@ -620,17 +849,56 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext *ctx)
 {
     BasicBlock *bb = cfg->current_bb;
 
-    auto leftAny = this->visit(ctx->expr(0));
-    bool leftIsConst = leftAny.type() == typeid(int);
-    std::string left = leftIsConst ? std::to_string(std::any_cast<int>(leftAny))
-                                   : std::any_cast<std::string>(leftAny);
+    bool previous = allowConstProp;
+    allowConstProp = false;
+    auto leftAny = visit(ctx->expr(0));
+    allowConstProp = previous;
 
-    auto rightAny = this->visit(ctx->expr(1));
-    bool rightIsConst = rightAny.type() == typeid(int);
-    std::string right = rightIsConst ? std::to_string(std::any_cast<int>(rightAny))
-                                     : std::any_cast<std::string>(rightAny);
+    previous = allowConstProp;
+    allowConstProp = false;
+    auto rightAny = visit(ctx->expr(1));
+    allowConstProp = previous;
+
+    // Propagation si gauche est une variable constante
+    if (leftAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(leftAny);
+        if (constMap.find(var) != constMap.end())
+            leftAny = constMap[var];
+    }
+    if (rightAny.type() == typeid(std::string))
+    {
+        std::string var = std::any_cast<std::string>(rightAny);
+        if (constMap.find(var) != constMap.end())
+            rightAny = constMap[var];
+    }
+
+    // 💥 FOLD complet
+    if (leftAny.type() == typeid(int) && rightAny.type() == typeid(int))
+    {
+        int l = std::any_cast<int>(leftAny);
+        int r = std::any_cast<int>(rightAny);
+        int res = (l != 0) || (r != 0) ? 1 : 0;
+        std::cerr << "[FOLD ||] " << l << " || " << r << " = " << res << "\n";
+        return res;
+    }
+
+    // 🚪 Court-circuit gauche == vrai
+    if (leftAny.type() == typeid(int))
+    {
+        int l = std::any_cast<int>(leftAny);
+        if (l != 0)
+        {
+            std::cerr << "[FOLD ||] " << l << " || ? = 1\n";
+            return 1;
+        }
+    }
 
     std::string result = cfg->create_new_tempvar();
+    std::string left = leftAny.type() == typeid(int)
+                           ? std::to_string(std::any_cast<int>(leftAny))
+                           : std::any_cast<std::string>(leftAny);
+
     std::string one = cfg->create_new_tempvar();
     bb->add_IRInstr(std::make_unique<IRLdConst>(bb, one, "1"));
 
@@ -638,16 +906,22 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext *ctx)
     BasicBlock *evalRight = new BasicBlock(cfg, cfg->new_BB_name());
     BasicBlock *end = new BasicBlock(cfg, cfg->new_BB_name());
 
-    // Générer le saut conditionnel : si left ≠ 0 on va à end, sinon on évalue right
-    bb->exit_true = end;
+    bb->exit_true = end; // Si gauche est vrai → court-circuit
     bb->exit_false = evalRight;
+    bb->test_var_name = left;
 
-    // Bloc qui évalue right
+    // ------ Bloc droit ------
     cfg->add_bb(evalRight);
     cfg->current_bb = evalRight;
-    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
 
-    // Bloc final
+    std::string right = rightAny.type() == typeid(int)
+                            ? std::to_string(std::any_cast<int>(rightAny))
+                            : std::any_cast<std::string>(rightAny);
+
+    evalRight->add_IRInstr(std::make_unique<IRCopy>(evalRight, result, right));
+    evalRight->exit_true = end;
+
+    // ------ Bloc fin ------
     cfg->add_bb(end);
     cfg->current_bb = end;
     end->add_IRInstr(std::make_unique<IRCopy>(end, result, one));
@@ -655,31 +929,40 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext *ctx)
     return result;
 }
 
-
 antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 {
     BasicBlock *currentBB = cfg->current_bb;
 
-    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    condBB->label += "_cond";
-    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
-    bodyBB->label += "_body";
-    BasicBlock *exitBB = new BasicBlock(cfg, cfg->new_BB_name());
-    exitBB->label += "_exit";
-
-    exitBB->exit_true = currentBB->exit_true;
-    exitBB->exit_false = currentBB->exit_false;
+    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name() + "_cond");
+    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name() + "_body");
+    BasicBlock *exitBB = new BasicBlock(cfg, cfg->new_BB_name() + "_exit");
 
     currentBB->exit_true = condBB;
-
-    condBB->exit_false = exitBB;
     condBB->exit_true = bodyBB;
+    condBB->exit_false = exitBB;
     bodyBB->exit_true = condBB;
 
     cfg->add_bb(condBB);
     cfg->current_bb = condBB;
-    std::string cond = std::any_cast<std::string>(this->visit(ctx->expr()));
-    condBB->test_var_name = cond;
+
+    // ⛔️ Désactiver temporairement la propagation pour éviter de plier i < 5
+    bool prev = allowConstProp;
+    allowConstProp = false;
+
+    auto condAny = this->visit(ctx->expr());
+
+    allowConstProp = prev;
+
+    if (condAny.type() == typeid(int))
+    {
+        std::string tmp = cfg->create_new_tempvar();
+        condBB->add_IRInstr(std::make_unique<IRLdConst>(condBB, tmp, std::to_string(std::any_cast<int>(condAny))));
+        condBB->test_var_name = tmp;
+    }
+    else
+    {
+        condBB->test_var_name = std::any_cast<std::string>(condAny);
+    }
 
     cfg->add_bb(bodyBB);
     cfg->current_bb = bodyBB;

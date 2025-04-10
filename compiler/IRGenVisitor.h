@@ -16,9 +16,10 @@ class  IRGenVisitor : public ifccBaseVisitor {
         bool hasReturned = false; // Indique si une instruction de retour a été rencontrée
         SymbolTableVisitor stv;
         std::unordered_map<std::string, int> constMap;
+        bool allowConstProp = true;
+
 
         std::string gen_const(int value);
-
 
         virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
         virtual antlrcpp::Any visitAxiom(ifccParser::AxiomContext *ctx) override ;

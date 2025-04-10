@@ -1,6 +1,9 @@
 #include "IR.h"
 #include "IRInstr.h"
 
+
+extern CodeGenBackend *codegenBackend;
+
 /**
  * DefFonction
  */
@@ -25,19 +28,51 @@ BasicBlock::BasicBlock(CFG* cfg, std::string entry_label)
 void BasicBlock::gen_asm(std::ostream &o)
 {
     o << label << ":\n";
+
+    // Génère les instructions du bloc
     for (auto &instr : instrs)
     {
         instr->gen_asm(o);
-    } // ajouter les sauts
-    if (exit_true != nullptr && exit_false != nullptr){
-        o << "    movl " << cfg->IR_reg_to_asm(test_var_name) << ", %eax\n";
-        o << "    cmpl $0, %eax\n";
-        o << "    jne " << exit_true->label << "\n";
-        o << "    jmp " << exit_false->label << "\n";
-    } else if  (exit_true != nullptr && exit_false == nullptr) {
-        o << "    jmp " << exit_true->label << "\n";
-    } 
+    }
+
+    // Génère le saut conditionnel (cas if/while)
+    if (exit_true != nullptr && exit_false != nullptr)
+    {
+        std::string testReg = cfg->IR_reg_to_asm(test_var_name);
+
+        if (codegenBackend->getArchitecture() == "X86")
+        {
+            o << "    movl " << testReg << ", %eax\n";
+            o << "    cmpl $0, %eax\n";
+            o << "    jne " << exit_true->label << "\n";
+            o << "    jmp " << exit_false->label << "\n";
+        }
+        else if (codegenBackend->getArchitecture() == "arm64")
+        {
+            o << "    ldr w0, " << testReg << "\n";
+            o << "    cmp w0, #0\n";
+            o << "    b.ne " << exit_true->label << "\n";
+            o << "    b " << exit_false->label << "\n";
+        }
+    }
+    // Saut inconditionnel (cas while → cond ou else/then → merge)
+    else if (exit_true != nullptr && exit_false == nullptr)
+    {
+        if (codegenBackend->getArchitecture() == "X86")
+        {
+            o << "    jmp " << exit_true->label << "\n";
+        }
+        else if (codegenBackend->getArchitecture() == "arm64")
+        {
+            o << "    b " << exit_true->label << "\n";
+        }
+    }
+
+    // (Pas besoin de gérer le cas où les deux sont null, fin de fonction)
 }
+
+
+
 
 
 void BasicBlock::add_IRInstr(std::unique_ptr<IRInstr> instr)
