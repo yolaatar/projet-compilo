@@ -407,40 +407,48 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     BasicBlock *currentBB = cfg->current_bb;
+
     std::string condTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
-    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock *mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
+
+    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name() + "_then");
+    BasicBlock *mergeBB = new BasicBlock(cfg, cfg->new_BB_name() + "_end");
 
     if (ctx->block().size() > 1)
     {
-        BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+        BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name() + "_else");
+
         currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, elseBB->label));
 
+        // THEN
         cfg->add_bb(thenBB);
         cfg->current_bb = thenBB;
         this->visit(ctx->block(0));
-        thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+        cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, mergeBB->label));
 
+        // ELSE
         cfg->add_bb(elseBB);
         cfg->current_bb = elseBB;
         this->visit(ctx->block(1));
-        elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
+        cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, mergeBB->label));
     }
     else
     {
-        // Si pas de clause else, le faux chemin va directement dans mergeBB.
         currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, mergeBB->label));
+
+        // THEN
         cfg->add_bb(thenBB);
         cfg->current_bb = thenBB;
         this->visit(ctx->block(0));
-        thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+        cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, mergeBB->label));
     }
 
+    // END
     cfg->add_bb(mergeBB);
     cfg->current_bb = mergeBB;
 
     return std::string("");
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur logique "&&"
