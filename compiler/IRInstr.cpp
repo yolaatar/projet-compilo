@@ -246,3 +246,31 @@ void IRAndPar::gen_asm(std::ostream &o)
                                bb->cfg->IR_reg_to_asm(params[1]),
                                bb->cfg->IR_reg_to_asm(params[2]));
 }
+
+void IRParamLoad::gen_asm(std::ostream &o)
+{
+    const std::string &dest = bb->cfg->IR_reg_to_asm(params[0]);
+    int paramIndex = std::stoi(params[1]);
+
+    std::string architecture = codegenBackend->getArchitecture();
+
+    // Registres d’arguments standards
+    std::string src;
+    if (architecture == "arm64") {
+        src = "w" + std::to_string(paramIndex);
+    } else if (architecture == "X86") {
+        // Ordre x86-64 System V
+        std::vector<std::string> argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+        if (paramIndex >= (int)argRegs.size()) {
+            std::cerr << "[ERROR] Too many parameters for x86 register ABI\n";
+            exit(1);
+        }
+        src = argRegs[paramIndex];
+    } else {
+        std::cerr << "[ERROR] Unknown architecture in IRParamLoad\n";
+        exit(1);
+    }
+
+    codegenBackend->gen_copy(o, dest, src);
+}
+

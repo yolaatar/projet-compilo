@@ -6,8 +6,9 @@
 #include <any>
 
 using namespace std;
-IRGenVisitor::IRGenVisitor() 
-    : cfg(nullptr), backend(nullptr), functionTable(nullptr), hasReturned(false), tempCpt(1) {
+IRGenVisitor::IRGenVisitor()
+    : cfg(nullptr), backend(nullptr), functionTable(nullptr), hasReturned(false), tempCpt(1)
+{
 }
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'instruction de retour : "return expr ;"
@@ -27,16 +28,19 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
 // visitDecl : Traitement d'une déclaration "int ID ('=' expr)?".
 ///////////////////////////////////////////////////////////////////////////////
 
-
-antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx) {
+antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
+{
     std::string varName = ctx->ID()->getText();
     std::string uniqueName = cfg->get_stv().addToSymbolTable(varName);
-    
+
     BasicBlock *bb = cfg->current_bb;
-    if (ctx->expr() != nullptr) {
+    if (ctx->expr() != nullptr)
+    {
         std::string exprTemp = std::any_cast<std::string>(visit(ctx->expr()));
         bb->add_IRInstr(make_unique<IRCopy>(bb, uniqueName, exprTemp));
-    } else {
+    }
+    else
+    {
         // Initialisation par défaut à 0
         bb->add_IRInstr(make_unique<IRLdConst>(bb, uniqueName, "0"));
     }
@@ -61,17 +65,19 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 // Traitement d'une variable (IdExpr)
 ///////////////////////////////////////////////////////////////////////////////
 
-
-antlrcpp::Any IRGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+antlrcpp::Any IRGenVisitor::visitBlock(ifccParser::BlockContext *ctx)
+{
     cfg->get_stv().enterScope();
-    for (auto child : ctx->children) {
+    for (auto child : ctx->children)
+    {
         visit(child);
     }
     cfg->get_stv().exitScope();
     return nullptr;
 }
 
-antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx) {
+antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
+{
     string varName = ctx->ID()->getText();
     string uniqueName = cfg->get_stv().getUniqueName(varName);
     return uniqueName; // Retourne le nom unique (s1_a ou s2_a)
@@ -93,7 +99,7 @@ antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx)
     return result;
 }
 
-antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
+antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext *ctx)
 {
     // Visiter la première sous-expression
     std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
@@ -102,14 +108,13 @@ antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
     // Créer une variable temporaire pour stocker le résultat de la comparaison
     std::string result = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
-    
+
     // Créer une instruction IRComp avec l'opérateur récupéré (par exemple, ">", "<", etc.)
     auto instr = std::make_unique<IRComp>(bb, result, left, right, ctx->op->getText());
     bb->add_IRInstr(std::move(instr));
-    
+
     return result;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Expression multiplicative (*, /, %)
@@ -156,20 +161,18 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     cfg->current_bb = entryBB;
 
     // Étape 1 : gérer les paramètres
+    // Initialisation des paramètres formels (si présents)
+    int paramIndex = 0;
     if (ctx->decl_params())
     {
-        int index = 0;
         for (auto param : ctx->decl_params()->param())
         {
             std::string paramName = param->ID()->getText();
+            std::string uniqueName = cfg->get_stv().addToSymbolTable(paramName);
 
-            // Paramètres ARM64 : x0, x1, x2, ..., jusqu'à x7
-            std::string sourceReg = "w" + std::to_string(index++);
-            std::string localSlot = cfg->IR_reg_to_asm(paramName);
-
-            // Génère : str wX, [sp, offset]
-            auto instr = std::make_unique<IRCopy>(cfg->current_bb, paramName, sourceReg);
-            cfg->current_bb->add_IRInstr(std::move(instr));
+            // Génère une instruction IRParamLoad qui copie w0/w1/etc. → uniqueName
+            cfg->current_bb->add_IRInstr(
+                std::make_unique<IRParamLoad>(cfg->current_bb, uniqueName, paramIndex++));
         }
     }
 
@@ -183,18 +186,19 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     // Étape 3 : calcul du maxOffset pour l'allocation stack
     int minOffset = 0;
-    Scope* global = cfg->get_stv().getGlobalScope();
-    for (const auto& [_, info] : global->symbols) {
+    Scope *global = cfg->get_stv().getGlobalScope();
+    for (const auto &[_, info] : global->symbols)
     {
-        if (info.offset < minOffset)
         {
-            minOffset = info.offset;
+            if (info.offset < minOffset)
+            {
+                minOffset = info.offset;
+            }
         }
-    }
-    cfg->maxOffset = -minOffset;
+        cfg->maxOffset = -minOffset;
 
-    return 0;
-}
+        return 0;
+    }
 }
 
 antlrcpp::Any IRGenVisitor::visitAxiom(ifccParser::AxiomContext *ctx)
@@ -223,7 +227,8 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 // Affectation
 ///////////////////////////////////////////////////////////////////////////////
 
-antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
+antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
+{
     std::string varName = ctx->ID()->getText();
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
@@ -233,8 +238,6 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) 
     bb->add_IRInstr(std::move(instr));
     return unique;
 }
-
-
 
 antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
 {
@@ -368,7 +371,6 @@ antlrcpp::Any IRGenVisitor::visitFunction_call(ifccParser::Function_callContext 
     return returnVar;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // OR bit-à-bit
 ///////////////////////////////////////////////////////////////////////////////
@@ -404,39 +406,41 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
-    BasicBlock* currentBB = cfg->current_bb;
+    BasicBlock *currentBB = cfg->current_bb;
     std::string condTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
-    BasicBlock* thenBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *mergeBB = new BasicBlock(cfg, cfg->new_BB_name());
 
-    if (ctx->block().size() > 1) {
-         BasicBlock* elseBB = new BasicBlock(cfg, cfg->new_BB_name());
-         currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, elseBB->label));
+    if (ctx->block().size() > 1)
+    {
+        BasicBlock *elseBB = new BasicBlock(cfg, cfg->new_BB_name());
+        currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, elseBB->label));
 
-         cfg->add_bb(thenBB);
-         cfg->current_bb = thenBB;
-         this->visit(ctx->block(0));
-         thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+        cfg->add_bb(thenBB);
+        cfg->current_bb = thenBB;
+        this->visit(ctx->block(0));
+        thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
 
-         cfg->add_bb(elseBB);
-         cfg->current_bb = elseBB;
-         this->visit(ctx->block(1));
-         elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
-    } else {
-         // Si pas de clause else, le faux chemin va directement dans mergeBB.
-         currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, mergeBB->label));
-         cfg->add_bb(thenBB);
-         cfg->current_bb = thenBB;
-         this->visit(ctx->block(0));
-         thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+        cfg->add_bb(elseBB);
+        cfg->current_bb = elseBB;
+        this->visit(ctx->block(1));
+        elseBB->add_IRInstr(std::make_unique<IRJump>(elseBB, mergeBB->label));
     }
-    
+    else
+    {
+        // Si pas de clause else, le faux chemin va directement dans mergeBB.
+        currentBB->add_IRInstr(std::make_unique<IRJumpCond>(currentBB, condTemp, thenBB->label, mergeBB->label));
+        cfg->add_bb(thenBB);
+        cfg->current_bb = thenBB;
+        this->visit(ctx->block(0));
+        thenBB->add_IRInstr(std::make_unique<IRJump>(thenBB, mergeBB->label));
+    }
+
     cfg->add_bb(mergeBB);
     cfg->current_bb = mergeBB;
 
     return std::string("");
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur logique "&&"
@@ -466,12 +470,12 @@ antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext *ctx)
     return result;
 }
 
-
-antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx) {
+antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
+{
     // 1. Création des BasicBlocks nécessaires
-    BasicBlock* condBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
-    BasicBlock* afterBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *condBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *bodyBB = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *afterBB = new BasicBlock(cfg, cfg->new_BB_name());
 
     // 2. Saut immédiat vers le bloc condition depuis le bloc actuel
     cfg->current_bb->add_IRInstr(std::make_unique<IRJump>(cfg->current_bb, condBB->label));
@@ -496,7 +500,3 @@ antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx) 
 
     return nullptr;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// Shadowing et portée
-///////////////////////////////////////////////////////////////////////////////
