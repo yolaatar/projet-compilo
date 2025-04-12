@@ -17,6 +17,8 @@ void IRReturn::gen_asm(std::ostream &o)
 void IRLdConst::gen_asm(std::ostream &o)
 {
     codegenBackend->gen_mov(o, bb->cfg->IR_reg_to_asm(params[0]), params[1]);
+    // codegenBackend->gen_mov(o, params[0], params[1]);
+
 }
 
 void IRCopy::gen_asm(std::ostream &o)
@@ -219,4 +221,31 @@ void IRBranch::gen_asm(std::ostream &o)
                                    params[1],
                                    params[2]);
     }
+}
+
+void IRParamLoad::gen_asm(std::ostream &o)
+{
+    const std::string &dest = bb->cfg->IR_reg_to_asm(params[0]);
+    int paramIndex = std::stoi(params[1]);
+
+    std::string architecture = codegenBackend->getArchitecture();
+
+    // Registres d’arguments standards
+    std::string src;
+    if (architecture == "arm64") {
+        src = "w" + std::to_string(paramIndex);
+    } else if (architecture == "X86") {
+        // Ordre x86-64 System V
+        std::vector<std::string> argRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8", "%r9"};
+        if (paramIndex >= (int)argRegs.size()) {
+            std::cerr << "[ERROR] Too many parameters for x86 register ABI\n";
+            exit(1);
+        }
+        src = argRegs[paramIndex];
+    } else {
+        std::cerr << "[ERROR] Unknown architecture in IRParamLoad\n";
+        exit(1);
+    }
+
+    codegenBackend->gen_copy(o, dest, src);
 }

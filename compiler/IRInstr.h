@@ -217,5 +217,13 @@ public:
     void gen_asm(std::ostream &o) override;
 };
 
+class IRParamLoad : public IRInstr
+{
+public:
+    IRParamLoad(BasicBlock *bb, const std::string &dest, int paramIndex)
+        : IRInstr(bb, {dest, std::to_string(paramIndex)}) {}
+
+    void gen_asm(std::ostream &o) override;
+};
 
 #endif

@@ -90,39 +90,30 @@ static bool isNumber(const std::string &s)
     return true;
 }
 
-std::string CFG::IR_reg_to_asm(std::string name)
-{
-    std::string arch = codegenBackend->getArchitecture();
-    if (arch == "arm64")
-    {
-        if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && isdigit(name[1]))
-        {
-            return name;
-        }
+std::string CFG::IR_reg_to_asm(std::string name) {
+    if (!codegenBackend) {
+        stv.writeError("Codegen backend not initialized!");
+        return "0";
     }
-    else if (arch == "X86")
-    {
-        std::unordered_set<std::string> x86Regs = {"%eax", "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
-        if (x86Regs.count(name))
-        {
-            return name;
+    if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && std::isdigit(name[1]))
+        return name;
+    
+    // Recherche par uniqueName dans la hiérarchie
+    Scope* scope = stv.currentScope;
+    while (scope != nullptr) {
+        for (const auto &entry : scope->symbols) {
+            if (entry.second.uniqueName == name) {
+                int off = entry.second.offset;
+                if (codegenBackend->getArchitecture() == "arm64")
+                    return "[x29, #" + std::to_string(off) + "]";
+                else
+                    return std::to_string(off) + "(%rbp)";
+            }
         }
+        scope = scope->parent;
     }
-
-    for (auto it = stv.symbolStack.rbegin(); it != stv.symbolStack.rend(); ++it)
-    {
-        if (it->find(name) != it->end())
-        {
-            int offset = (*it)[name].offset;
-            if (arch == "arm64")
-                return "[x29, #" + std::to_string(offset) + "]";
-            else
-                return std::to_string(offset) + "(%rbp)";
-        }
-    }
-
-    std::cerr << "[ERROR] Variable '" << name << "' not found in symbol table for " << arch << "\n";
-    return (arch == "arm64") ? "[x29, #0]" : "0(%rbp)";
+    stv.writeError("Variable " + name + " non trouvée");
+    return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
 }
 
 
@@ -142,23 +133,20 @@ void CFG::gen_asm(std::ostream &o)
     codegenBackend->gen_epilogue(o);      // Generate epilogue instructions
 }
 
-void CFG::gen_asm_prologue(std::ostream &o)
-{
-    // Compute the total size to reserve on the stack (must be positive)
-    int stackSize = (-stv.offset + 15) / 16 * 16; // Round up to nearest 16
+void CFG::gen_asm_prologue(std::ostream &o) {
+    // Utiliser le scope global pour calculer la taille de la pile.
+    Scope* global = stv.getGlobalScope();
+    int stackSize = (-global->offset + 15) / 16 * 16;  // Arrondi au multiple de 16
 
-    if (codegenBackend->getArchitecture() == "arm64")
-    {
+    if (codegenBackend->getArchitecture() == "arm64") {
         std::string cleanName = ast->name;
         size_t sharp = cleanName.find('#');
         if (sharp != std::string::npos)
             cleanName = cleanName.substr(0, sharp);
-
         codegenBackend->gen_prologue(o, cleanName, stackSize);
     }
-    else
-    {
-        codegenBackend->gen_prologue(o, ast->name, stackSize); // X86 doesn't need stackSize
+    else {
+        codegenBackend->gen_prologue(o, ast->name, stackSize);
     }
 }
 

@@ -7,6 +7,11 @@
 
 using namespace std;
 
+IRGenVisitor::IRGenVisitor()
+    : cfg(nullptr), backend(nullptr), functionTable(nullptr), hasReturned(false), tempCpt(1)
+{
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'instruction de retour : "return expr ;"
 ///////////////////////////////////////////////////////////////////////////////
@@ -36,19 +41,20 @@ antlrcpp::Any IRGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx
 antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
+    std::string uniqueName = cfg->get_stv().addToSymbolTable(varName);
+
     BasicBlock *bb = cfg->current_bb;
     if (ctx->expr() != nullptr)
     {
-        std::string temp = std::any_cast<std::string>(this->visit(ctx->expr()));
-        auto instr = std::make_unique<IRCopy>(bb, varName, temp);
-        cfg->current_bb->add_IRInstr(std::move(instr));
+        std::string exprTemp = std::any_cast<std::string>(visit(ctx->expr()));
+        cfg->current_bb->add_IRInstr(std::move(make_unique<IRCopy>(bb, uniqueName, exprTemp)));
     }
     else
     {
-        auto instr = std::make_unique<IRLdConst>(bb, varName, "0");
-        cfg->current_bb->add_IRInstr(std::move(instr));
+        // Initialisation par défaut à 0
+        cfg->current_bb->add_IRInstr(make_unique<IRLdConst>(bb, uniqueName, "0"));
     }
-    return varName;
+    return uniqueName;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -68,10 +74,23 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une variable (IdExpr)
 ///////////////////////////////////////////////////////////////////////////////
+
+antlrcpp::Any IRGenVisitor::visitBlock(ifccParser::BlockContext *ctx)
+{
+    cfg->get_stv().enterScope();
+    for (auto child : ctx->children)
+    {
+        visit(child);
+    }
+    cfg->get_stv().exitScope();
+    return nullptr;
+}
+
 antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 {
-    std::string varName = ctx->ID()->getText();
-    return varName; // Retourne une std::string
+    string varName = ctx->ID()->getText();
+    string uniqueName = cfg->get_stv().getUniqueName(varName);
+    return uniqueName; // Retourne le nom unique (s1_a ou s2_a)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -152,36 +171,18 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
     cfg->current_bb = entryBB;
 
     // Étape 1 : gérer les paramètres
+    // Initialisation des paramètres formels (si présents)
+    int paramIndex = 0;
     if (ctx->decl_params())
     {
-        std::string arch = codegenBackend->getArchitecture();
-        std::vector<std::string> paramRegs;
-        if (arch == "arm64")
-        {
-            paramRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
-        }
-        else if (arch == "X86")
-        {
-            paramRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"}; // 32-bit subregisters for 32-bit data
-        }
-        else
-        {
-            std::cerr << "[ERROR] Unsupported architecture: " << arch << "\n";
-            exit(1);
-        }
-
-        size_t index = 0;
         for (auto param : ctx->decl_params()->param())
         {
-            if (index >= paramRegs.size())
-            {
-                std::cerr << "[ERROR] Too many parameters for function\n";
-                exit(1);
-            }
             std::string paramName = param->ID()->getText();
-            std::string sourceReg = paramRegs[index++];
-            auto instr = std::make_unique<IRCopy>(cfg->current_bb, paramName, sourceReg);
-            cfg->current_bb->add_IRInstr(std::move(instr));
+            std::string uniqueName = cfg->get_stv().addToSymbolTable(paramName);
+
+            // Génère une instruction IRParamLoad qui copie w0/w1/etc. → uniqueName
+            cfg->current_bb->add_IRInstr(
+                std::make_unique<IRParamLoad>(cfg->current_bb, uniqueName, paramIndex++));
         }
     }
 
@@ -195,16 +196,19 @@ antlrcpp::Any IRGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
     // Étape 3 : calcul du maxOffset pour l'allocation stack
     int minOffset = 0;
-    for (const auto &[_, info] : cfg->get_stv().symbolStack.front())
+    Scope *global = cfg->get_stv().getGlobalScope();
+    for (const auto &[_, info] : global->symbols)
     {
-        if (info.offset < minOffset)
         {
-            minOffset = info.offset;
+            if (info.offset < minOffset)
+            {
+                minOffset = info.offset;
+            }
         }
-    }
-    cfg->maxOffset = -minOffset;
+        cfg->maxOffset = -minOffset;
 
-    return 0;
+        return 0;
+    }
 }
 
 antlrcpp::Any IRGenVisitor::visitAxiom(ifccParser::AxiomContext *ctx)
@@ -237,14 +241,11 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
     std::string varName = ctx->ID()->getText();
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
     BasicBlock *bb = cfg->current_bb;
-
-    if (varName != exprTemp)
-    { // éviter les copies inutiles
-        auto instr = std::make_unique<IRCopy>(bb, varName, exprTemp);
-        cfg->current_bb->add_IRInstr(std::move(instr));
-    }
-
-    return varName;
+    // Récupérer le unique name via getUniqueName
+    std::string unique = cfg->get_stv().getUniqueName(varName);
+    auto instr = std::make_unique<IRCopy>(bb, unique, exprTemp);
+    bb->add_IRInstr(std::move(instr));
+    return unique;
 }
 
 antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
@@ -436,18 +437,21 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
     currentBB->exit_true = thenBB;
     currentBB->exit_false = elseBB;
 
+
     thenBB->exit_true = mergeBB;
     elseBB->exit_false = mergeBB;
 
-    cfg->current_bb = thenBB;
+    //cfg->current_bb = thenBB;
     
     // 4. Générer le code pour la branche then.
     cfg->add_bb(thenBB);  
     this->visit(ctx->block(0));  // Traiter le bloc then
     
     // 5. Générer le code pour la branche else.
+    
     cfg->add_bb(elseBB);
     cfg->current_bb = elseBB;
+    
     if (ctx->block().size() > 1) {
         this->visit(ctx->block(1)); // Traiter le bloc else s'il existe
     }
@@ -495,7 +499,7 @@ antlrcpp::Any IRGenVisitor::visitEtParExpr(ifccParser::EtParExprContext* ctx)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// Traitement du "while"
+// Traitement du ou paresseux "||"
 ///////////////////////////////////////////////////////////////////////////////
 
 antlrcpp::Any IRGenVisitor::visitOuParExpr(ifccParser::OuParExprContext* ctx)

@@ -1,43 +1,71 @@
 #pragma once
 
-#include "antlr4-runtime.h"
-#include "generated/ifccBaseVisitor.h"
-using namespace std;
+#include "generated/ifccBaseVisitor.h"  // Chemin vers vos fichiers générés par ANTLR
+#include "generated/ifccParser.h"
+#include <unordered_map>
+#include <string>
+#include <map>
+#include <iostream>
 
-struct SymbolTableStruct
-{
+// Structure représentant une entrée de la table des symboles
+struct SymbolTableStruct {
     bool initialised = false;
     int offset;
     bool used = false;
-    string asmOperand; 
+    std::string uniqueName; 
 };
 
-struct FunctionSignature
-{
+// Structure représentant un scope
+struct Scope {
+    std::unordered_map<std::string, SymbolTableStruct> symbols; // clé = nom d'origine
+    int offset;
+    int level;       // Niveau du scope (1 pour global, 2 pour interne, etc.)
+    Scope* parent;
+};
+
+struct FunctionSignature {
     std::string returnType;
     std::vector<std::string> paramsTypes;
 };
-class  SymbolTableVisitor : public ifccBaseVisitor {
-	public:
-        static const int INTSIZE = 4;      
-        std::vector<std::unordered_map<std::string, SymbolTableStruct>> symbolStack;
-        std::map<std::string, FunctionSignature>* functionTable;
-;
-        int offset = INTSIZE;
-        int error = 0;
-        int warning = 0;
-        virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
-        virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
-        virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *context) override;
-        virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
-        virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
-        virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
-        void addToSymbolTable(const std::string &s);
-        std::string createNewTemp();
-        void checkSymbolTable();
-        void writeWarning(std::string message);
-        void writeError(std::string message);
-        void print_symbol_table(std::ostream& os = std::cerr) const;
-        void exitScope();
-        void enterScope();
+
+class SymbolTableVisitor : public ifccBaseVisitor {
+public:
+    static const int INTSIZE = 4;
+
+    Scope* currentScope;
+    std::map<std::string, FunctionSignature>* functionTable;
+
+    int error = 0;
+    int warning = 0;
+    int tempSuffixCounter = 1;
+
+    SymbolTableVisitor();
+
+    virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
+    virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
+    
+    virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *ctx) override;
+    virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+    virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
+
+    std::string addToSymbolTable(const std::string &s);
+    std::string getUniqueName(const std::string &s) const;
+    int getScopeLevel(Scope* scope) const;
+    std::string createNewTemp();
+    void checkSymbolTable();
+
+    void writeWarning(const std::string &message);
+    void writeError(const std::string &message);
+
+    void enterScope();
+    void exitScope();
+
+    void printCurrentScope(std::ostream &os = std::cerr) const;
+    void printGlobalSymbolTable(std::ostream &os = std::cerr) const;
+    Scope* getGlobalScope() const;
+
+private:
+    // Table pour conserver les symboles des scopes quittés
+    std::unordered_map<std::string, SymbolTableStruct> aggregatedSymbols;
 };
