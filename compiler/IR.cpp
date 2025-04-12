@@ -167,6 +167,9 @@ std::string CFG::create_new_tempvar() {
     std::string temp = stv.createNewTemp(); // S'assurer que cela génère un nom unique
     return temp;
 }
+
 std::string CFG::new_BB_name() {
     return ".LBB" + std::to_string(nextBBnumber++);
 }
+
+

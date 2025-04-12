@@ -249,6 +249,7 @@ void ARM64Backend::gen_comp(std::ostream &os, const std::string &dest,
 }
 
 
+
 void ARM64Backend::gen_gcompinf(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const {
     os << "    ldr w0, " << src1 << "\n";  // Charger src1 dans w0
     os << "    ldr w1, " << src2 << "\n";  // Charger src2 dans w1
@@ -287,8 +288,25 @@ void ARM64Backend::gen_branch(std::ostream &os, const std::string &cond, const s
     os << "    b " << label_then << "\n";
 }
 
-void ARM64Backend::gen_jump_cond(std::ostream &os, const std::string &cond, const std::string &labelTrue, const std::string &labelFalse) const {
+/*
+
+void ARM64Backend::gen_jump_cond(std::ostream &os, const std::string &cond, 
+                               const std::string &labelTrue, 
+                               const std::string &labelFalse) const {
     os << "    ldr w0, " << cond << "\n";
+    os << "    cmp w0, #1\n";  // Comparaison avec true (1)
+    os << "    b.eq " << labelTrue << "\n";
+    os << "    b " << labelFalse << "\n";
+}
+*/
+
+
+void ARM64Backend::gen_jump_cond(std::ostream& os, 
+                                   const std::string &cond,
+                                   const std::string &labelTrue,
+                                   const std::string &labelFalse) const {
+    os << "    ldr w0, " << cond << "\n";
+    // Ne retirez pas le point ; utilisez le label tel quel.
     os << "    cbnz w0, " << labelTrue << "\n";
     os << "    b " << labelFalse << "\n";
 }
