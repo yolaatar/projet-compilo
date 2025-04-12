@@ -32,7 +32,6 @@ public:
     virtual void gen_and(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2) const override;
     virtual void gen_branch(std::ostream &os, const std::string &cond, const std::string &label_then, const std::string &label_else) const;
     virtual void gen_comp(std::ostream &os, const std::string &dest, const std::string &src1, const std::string &src2, const std::string &op) const override;
-
     virtual std::string getTempPrefix() const override;
     virtual std::string getArchitecture() const override;
 };

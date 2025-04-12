@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include "generated/ifccBaseVisitor.h"  // Chemin vers vos fichiers générés par ANTLR
@@ -14,6 +15,7 @@ struct SymbolTableStruct {
     bool used = false;
     std::string uniqueName; 
 };
+
 
 // Structure représentant un scope
 struct Scope {
@@ -32,12 +34,14 @@ class SymbolTableVisitor : public ifccBaseVisitor {
 public:
     static const int INTSIZE = 4;
 
+    int tempSuffixCounter; 
+
     Scope* currentScope;
     std::map<std::string, FunctionSignature>* functionTable;
 
     int error = 0;
     int warning = 0;
-    int tempSuffixCounter = 1;
+    
 
     SymbolTableVisitor();
 

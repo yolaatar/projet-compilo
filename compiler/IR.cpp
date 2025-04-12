@@ -95,25 +95,24 @@ std::string CFG::IR_reg_to_asm(std::string name) {
         stv.writeError("Codegen backend not initialized!");
         return "0";
     }
-    if ((name[0] == 'w' || name[0] == 'x') && name.size() == 2 && std::isdigit(name[1]))
-        return name;
-    
-    // Recherche par uniqueName dans la hiérarchie
+    // Si le nom commence par '$', considérer qu'il s'agit d'un immédiat, et le retourner tel quel
+    if (!name.empty() && name[0] == '$')
+        return name; // Par exemple, "$5" sera retourné tel quel
+
+    // Sinon, rechercher le symbole dans la hiérarchie des scopes
     Scope* scope = stv.currentScope;
     while (scope != nullptr) {
         for (const auto &entry : scope->symbols) {
             if (entry.second.uniqueName == name) {
                 int off = entry.second.offset;
-                if (codegenBackend->getArchitecture() == "arm64")
-                    return "[x29, #" + std::to_string(off) + "]";
-                else
-                    return std::to_string(off) + "(%rbp)";
+                return std::to_string(off) + "(%rbp)";
             }
         }
         scope = scope->parent;
     }
+    // Si non trouvé, vous pouvez éventuellement consulter les symboles agrégés
     stv.writeError("Variable " + name + " non trouvée");
-    return (codegenBackend->getArchitecture() == "arm64") ? "[x29, #0]" : "0(%rbp)";
+    return "0(%rbp)";
 }
 
 

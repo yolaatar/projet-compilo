@@ -249,3 +249,4 @@ void IRParamLoad::gen_asm(std::ostream &o)
 
     codegenBackend->gen_copy(o, dest, src);
 }
+

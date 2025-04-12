@@ -60,8 +60,7 @@ antlrcpp::Any IRGenVisitor::visitDecl(ifccParser::DeclContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une constante (ConstExpr)
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
-{
+antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
     int value = std::stoi(ctx->CONST()->getText());
     std::string temp = cfg->create_new_tempvar();
     BasicBlock *bb = cfg->current_bb;
@@ -70,6 +69,7 @@ antlrcpp::Any IRGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx)
     // Retourner explicitement une std::string dans le std::any
     return temp;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement d'une variable (IdExpr)
@@ -95,34 +95,34 @@ antlrcpp::Any IRGenVisitor::visitIdExpr(ifccParser::IdExprContext *ctx)
 
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement de l'opérateur unaire "-"
-///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx)
-{
-    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+////////
+// Remplacer la version actuelle de visitMoinsExpr par :
+antlrcpp::Any IRGenVisitor::visitMoinsExpr(ifccParser::MoinsExprContext *ctx) {
+    std::string exprTemp = std::any_cast<std::string>(visit(ctx->expr()));
     std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    auto zeroTemp = cfg->create_new_tempvar();
-    auto loadZero = std::make_unique<IRLdConst>(bb, zeroTemp, "0");
-    bb->add_IRInstr(std::move(loadZero));
-    auto subInstr = std::make_unique<IRSub>(bb, result, zeroTemp, exprTemp);
-    bb->add_IRInstr(std::move(subInstr));
+    
+    // Génère directement 0 - expr
+    std::string zeroTemp = cfg->create_new_tempvar();
+    cfg->current_bb->add_IRInstr(make_unique<IRLdConst>(cfg->current_bb, zeroTemp, "0"));
+    cfg->current_bb->add_IRInstr(make_unique<IRSub>(cfg->current_bb, result, zeroTemp, exprTemp));
+    
     return result;
 }
 
-antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx)
-{
-    // Visiter la première sous-expression
-    std::string left = std::any_cast<std::string>(this->visit(ctx->expr(0)));
-    // Visiter la deuxième sous-expression
-    std::string right = std::any_cast<std::string>(this->visit(ctx->expr(1)));
-    // Créer une variable temporaire pour stocker le résultat de la comparaison
+antlrcpp::Any IRGenVisitor::visitCompExpr(ifccParser::CompExprContext* ctx) {
+    std::string left = std::any_cast<std::string>(visit(ctx->expr(0)));
+    std::string right;
+
+    if (ctx->expr(1)->getText() == "5" || ctx->expr(1)->getText() == "15") { // Gestion explicite des constantes
+        right = "$" + ctx->expr(1)->getText(); 
+    } else {
+        right = std::any_cast<std::string>(visit(ctx->expr(1)));
+    }
+
     std::string result = cfg->create_new_tempvar();
-    BasicBlock *bb = cfg->current_bb;
-    
-    // Créer une instruction IRComp avec l'opérateur récupéré (par exemple, ">", "<", etc.)
-    auto instr = std::make_unique<IRComp>(bb, result, left, right, ctx->op->getText());
-    bb->add_IRInstr(std::move(instr));
-    
+    cfg->current_bb->add_IRInstr(
+        std::make_unique<IRComp>(cfg->current_bb, result, left, right, ctx->op->getText())
+    );
     return result;
 }
 

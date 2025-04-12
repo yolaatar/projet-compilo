@@ -88,13 +88,22 @@ std::string SymbolTableVisitor::getUniqueName(const std::string &s) const {
     exit(EXIT_FAILURE);
     return "";
 }
-
-
 std::string SymbolTableVisitor::createNewTemp() {
-    std::string prefix = codegenBackend->getTempPrefix();
-    std::string temp = prefix + std::to_string(currentScope->offset);
-    // Pour un temporaire, on le garde tel quel
-    return addToSymbolTable(temp);
+    Scope* global = getGlobalScope();
+    std::string temp = "!tmp" + std::to_string(tempSuffixCounter++);
+    
+    // Ajouter au scope GLOBAL
+    int varOffset = global->offset;
+    global->offset += INTSIZE;
+    
+    SymbolTableStruct symbol;
+    symbol.offset = -varOffset;
+    symbol.uniqueName = temp;
+    symbol.initialised = true;
+    symbol.used = true;
+    
+    global->symbols[temp] = symbol; // Clé = uniqueName
+    return temp;
 }
 
 void SymbolTableVisitor::checkSymbolTable() {
@@ -126,16 +135,9 @@ void SymbolTableVisitor::enterScope() {
 }
 
 void SymbolTableVisitor::exitScope() {
-    // Avant de détruire le scope, fusionnez ses symboles dans la table globale (ou agrégée)
-    for (const auto &entry : currentScope->symbols) {
-         aggregatedSymbols[entry.first] = entry.second;
-    }
     Scope* oldScope = currentScope;
-    if (currentScope != nullptr) {
-        currentScope = currentScope->parent;
-        delete oldScope;
-        std::cerr << "[DEBUG] Exit scope" << "\n";
-    }
+    currentScope = currentScope->parent;
+    delete oldScope; // Les symboles locaux sont supprimés
 }
 
 

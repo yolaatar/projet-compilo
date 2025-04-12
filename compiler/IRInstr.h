@@ -217,6 +217,7 @@ public:
     void gen_asm(std::ostream &o) override;
 };
 
+
 class IRParamLoad : public IRInstr
 {
 public:
