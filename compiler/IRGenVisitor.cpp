@@ -517,3 +517,15 @@ antlrcpp::Any IRGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx)
 
     return nullptr;
 }
+
+
+
+antlrcpp::Any IRGenVisitor::visitCharExpr(ifccParser::CharExprContext* ctx) {
+    char c = ctx->CHAR()->getText()[1];
+    int value = static_cast<int>(c);
+
+    std::string temp = cfg->create_new_tempvar();
+    BasicBlock *bb = cfg->current_bb;
+    bb->add_IRInstr(std::make_unique<IRLdConst>(bb, temp, std::to_string(value)));
+    return temp;
+}
