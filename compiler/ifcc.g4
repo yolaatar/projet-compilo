@@ -2,7 +2,7 @@ grammar ifcc;
 
 axiom : prog* EOF ;
 
-prog : type ID '(' decl_params ')' '{' (decl | inst)* '}' ;
+prog : type ID '(' decl_params? ')' '{' (decl | inst)* '}' ;
 
 block : '{' (decl | inst)* '}' ;
 
@@ -22,7 +22,7 @@ inst : declaration
 declaration : 'int' decl (',' decl)* ';' ;
 decl : ID ('=' expr)? ;
 assignment : ID '=' expr ';' ;
-if_stmt : 'if' '(' expr ')' block ('else' block)? ;
+if_stmt : 'if' '(' expr ')' block ( 'else' (if_stmt | block) )? ;
 while_stmt : 'while' '(' expr ')' block ;
 
 return_stmt : 'return' expr? ';' ;
