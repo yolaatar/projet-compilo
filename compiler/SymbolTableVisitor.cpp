@@ -10,6 +10,7 @@ SymbolTableVisitor::SymbolTableVisitor() {
     currentScope->level = 1;         // Scope global = niveau 1
     functionTable = nullptr;
     tempSuffixCounter = 1;
+    
 }
 
 int SymbolTableVisitor::getScopeLevel(Scope* scope) const {
@@ -89,11 +90,21 @@ std::string SymbolTableVisitor::getUniqueName(const std::string &s) const {
     return "";
 }
 
-
 std::string SymbolTableVisitor::createNewTemp() {
+    Scope* global = getGlobalScope(); // Récupère le scope global
     std::string prefix = codegenBackend->getTempPrefix();
-    std::string temp = prefix + std::to_string(currentScope->offset);
-    // Pour un temporaire, on le garde tel quel
+    std::string temp = prefix + "_G" + std::to_string(tempSuffixCounter++);
+    
+    // Ajoute la temporaire au scope global
+    int varOffset = global->offset;
+    global->offset += INTSIZE;
+    SymbolTableStruct symbol;
+    symbol.offset = -varOffset;
+    symbol.uniqueName = temp;
+    symbol.initialised = false;
+    symbol.used = false;
+    global->symbols[temp] = symbol;
+  
     return addToSymbolTable(temp);
 }
 
@@ -126,16 +137,12 @@ void SymbolTableVisitor::enterScope() {
 }
 
 void SymbolTableVisitor::exitScope() {
-    // Avant de détruire le scope, fusionnez ses symboles dans la table globale (ou agrégée)
     for (const auto &entry : currentScope->symbols) {
-         aggregatedSymbols[entry.first] = entry.second;
+        aggregatedSymbols[entry.first] = entry.second; 
     }
     Scope* oldScope = currentScope;
-    if (currentScope != nullptr) {
-        currentScope = currentScope->parent;
-        delete oldScope;
-        std::cerr << "[DEBUG] Exit scope" << "\n";
-    }
+    currentScope = currentScope->parent;
+    delete oldScope;
 }
 
 

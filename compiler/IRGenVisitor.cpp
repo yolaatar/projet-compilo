@@ -226,7 +226,7 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Affectation
 ///////////////////////////////////////////////////////////////////////////////
-
+/*
 antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
@@ -236,6 +236,14 @@ antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
     std::string unique = cfg->get_stv().getUniqueName(varName);
     auto instr = std::make_unique<IRCopy>(bb, unique, exprTemp);
     bb->add_IRInstr(std::move(instr));
+    return unique;
+}*/
+antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
+    std::string varName = ctx->ID()->getText();
+    std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
+    std::string unique = cfg->get_stv().getUniqueName(varName); // Nom unique de l'outer scope
+    auto instr = std::make_unique<IRCopy>(cfg->current_bb, unique, exprTemp);
+    cfg->current_bb->add_IRInstr(std::move(instr));
     return unique;
 }
 
@@ -404,11 +412,12 @@ antlrcpp::Any IRGenVisitor::visitEtLogExpr(ifccParser::EtLogExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Traitement du "if - else"
 ///////////////////////////////////////////////////////////////////////////////
+
 antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext *ctx)
 {
     BasicBlock *currentBB = cfg->current_bb;
+        std::string condTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
 
-    std::string condTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
 
     BasicBlock *thenBB = new BasicBlock(cfg, cfg->new_BB_name() + "_then");
     BasicBlock *mergeBB = new BasicBlock(cfg, cfg->new_BB_name() + "_end");

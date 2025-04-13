@@ -15,6 +15,7 @@ struct SymbolTableStruct {
     std::string uniqueName; 
 };
 
+
 // Structure représentant un scope
 struct Scope {
     std::unordered_map<std::string, SymbolTableStruct> symbols; // clé = nom d'origine
@@ -32,12 +33,14 @@ class SymbolTableVisitor : public ifccBaseVisitor {
 public:
     static const int INTSIZE = 4;
 
+    int tempSuffixCounter; 
+
     Scope* currentScope;
     std::map<std::string, FunctionSignature>* functionTable;
 
     int error = 0;
     int warning = 0;
-    int tempSuffixCounter = 1;
+    
 
     SymbolTableVisitor();
 
