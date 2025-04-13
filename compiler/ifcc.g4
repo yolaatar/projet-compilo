@@ -45,6 +45,7 @@ expr
     | function_call                      # FuncCallExpr 
     | ID                                 # IdExpr
     | CONST                              # ConstExpr
+    | CHAR                               # CharExpr
     ;
 
 function_call : ID '(' (expr (',' expr)*)? ')' ;
@@ -52,6 +53,7 @@ function_call : ID '(' (expr (',' expr)*)? ')' ;
 RETURN : 'return' ;
 CONST : [0-9]+ ;
 ID : [a-zA-Z_][a-zA-Z0-9_]* ;
+CHAR : '\'' [a-zA-Z] '\'' ;
 
 COMMENT : '/*' .*? '*/' -> skip ;
 DIRECTIVE : '#' .*? '\n' -> skip ;

@@ -39,6 +39,7 @@ public:
     virtual antlrcpp::Any visitOuParExpr(ifccParser::OuParExprContext* ctx) override;
     virtual antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
     virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
+    virtual antlrcpp::Any visitCharExpr(ifccParser::CharExprContext *ctx) override;
     
 
 private:
