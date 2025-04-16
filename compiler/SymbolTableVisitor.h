@@ -46,7 +46,7 @@ public:
     SymbolTableVisitor();
 
     virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
-    virtual antlrcpp::Any visitAssignment(ifccParser::AssignmentContext *ctx) override;
+    virtual antlrcpp::Any visitAssign(ifccParser::AssignContext *ctx) override;
     
     virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;

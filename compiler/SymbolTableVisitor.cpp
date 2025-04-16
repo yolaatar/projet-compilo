@@ -141,7 +141,7 @@ void SymbolTableVisitor::exitScope() {
 }
 
 
-antlrcpp::Any SymbolTableVisitor::visitAssignment(ifccParser::AssignmentContext *ctx) {
+antlrcpp::Any SymbolTableVisitor::visitAssign(ifccParser::AssignContext *ctx) {
     std::string varName = ctx->ID()->getText();
     bool found = false;
     Scope* scope = currentScope;

@@ -203,7 +203,7 @@ antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx){
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx){
+antlrcpp::Any CodeGenVisitor::visitAssign(ifccParser::AssignContext *ctx){
     std::string varName = ctx->ID()->getText();
     int offset = stv.symbolTable[varName].offset;
 

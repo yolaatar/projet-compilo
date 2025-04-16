@@ -20,7 +20,13 @@ inst : declaration
 
 declaration : 'int' decl (',' decl)* ';' ;
 decl : ID ('=' expr)? ;
-assignment : ID '=' expr ';' ;
+assignment 
+    : ID '=' expr ';'               # Assign
+    | ID '+=' expr ';'              # PlusAssign
+    | ID '-=' expr ';'              # MinusAssign
+    | ID '*=' expr ';'              # MulAssign
+    | ID '/=' expr ';'              # DivAssign
+    ;
 if_stmt : 'if' '(' expr ')' block ('else' block)? ;
 while_stmt : 'while' '(' expr ')' block ;
 

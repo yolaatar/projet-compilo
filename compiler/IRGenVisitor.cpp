@@ -236,7 +236,7 @@ antlrcpp::Any IRGenVisitor::visitNotExpr(ifccParser::NotExprContext *ctx)
 ///////////////////////////////////////////////////////////////////////////////
 // Affectation
 ///////////////////////////////////////////////////////////////////////////////
-antlrcpp::Any IRGenVisitor::visitAssignment(ifccParser::AssignmentContext *ctx)
+antlrcpp::Any IRGenVisitor::visitAssign(ifccParser::AssignContext *ctx)
 {
     std::string varName = ctx->ID()->getText();
     std::string exprTemp = std::any_cast<std::string>(this->visit(ctx->expr()));
