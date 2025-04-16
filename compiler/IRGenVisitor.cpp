@@ -437,21 +437,18 @@ antlrcpp::Any IRGenVisitor::visitIf_stmt(ifccParser::If_stmtContext* ctx)
     currentBB->exit_true = thenBB;
     currentBB->exit_false = elseBB;
 
-
-    thenBB->exit_true = mergeBB;
-    elseBB->exit_false = mergeBB;
-
-    //cfg->current_bb = thenBB;
     
     // 4. Générer le code pour la branche then.
-    cfg->add_bb(thenBB);  
+    cfg->add_bb(thenBB);
+    cfg->current_bb = thenBB;
+    thenBB->exit_true = mergeBB;  
     this->visit(ctx->block(0));  // Traiter le bloc then
     
     // 5. Générer le code pour la branche else.
     
     cfg->add_bb(elseBB);
     cfg->current_bb = elseBB;
-    
+    elseBB->exit_false = mergeBB;
     if (ctx->block().size() > 1) {
         this->visit(ctx->block(1)); // Traiter le bloc else s'il existe
     }
