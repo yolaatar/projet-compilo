@@ -46,7 +46,13 @@ public:
     SymbolTableVisitor();
 
     virtual antlrcpp::Any visitDecl(ifccParser::DeclContext *ctx) override;
+
     virtual antlrcpp::Any visitAssign(ifccParser::AssignContext *ctx) override;
+    virtual antlrcpp::Any visitPlusAssign(ifccParser::PlusAssignContext *ctx) override;
+    virtual antlrcpp::Any visitMinusAssign(ifccParser::MinusAssignContext *ctx) override;
+    virtual antlrcpp::Any visitMulAssign(ifccParser::MulAssignContext *ctx) override;
+    virtual antlrcpp::Any visitDivAssign(ifccParser::DivAssignContext *ctx) override;
+
     
     virtual antlrcpp::Any visitIdExpr(ifccParser::IdExprContext *ctx) override;
     virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
@@ -67,9 +73,12 @@ public:
 
     void printCurrentScope(std::ostream &os = std::cerr) const;
     void printGlobalSymbolTable(std::ostream &os = std::cerr) const;
-    Scope* getGlobalScope() const;
+    
+    Scope *getGlobalScope() const;
 
 private:
     // Table pour conserver les symboles des scopes quittés
     std::unordered_map<std::string, SymbolTableStruct> aggregatedSymbols;
+
+    antlrcpp::Any checkAssign(const std::string &varName, ifccParser::ExprContext *exprCtx);
 };

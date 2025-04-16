@@ -142,24 +142,25 @@ void SymbolTableVisitor::exitScope() {
 
 
 antlrcpp::Any SymbolTableVisitor::visitAssign(ifccParser::AssignContext *ctx) {
-    std::string varName = ctx->ID()->getText();
-    bool found = false;
-    Scope* scope = currentScope;
-    while (scope != nullptr) {
-        if (scope->symbols.find(varName) != scope->symbols.end()) {
-            scope->symbols[varName].initialised = true;
-            found = true;
-            break;
-        }
-        scope = scope->parent;
-    }
-    if (!found) {
-        writeError(varName + " is not defined");
-        exit(EXIT_FAILURE);
-    }
-    visit(ctx->expr());
-    return 0;
+    return checkAssign(ctx->ID()->getText(), ctx->expr());
 }
+
+antlrcpp::Any SymbolTableVisitor::visitMinusAssign(ifccParser::MinusAssignContext *ctx) {
+    return checkAssign(ctx->ID()->getText(), ctx->expr());
+}
+
+antlrcpp::Any SymbolTableVisitor::visitPlusAssign(ifccParser::PlusAssignContext *ctx) {
+    return checkAssign(ctx->ID()->getText(), ctx->expr());
+}
+
+antlrcpp::Any SymbolTableVisitor::visitMulAssign(ifccParser::MulAssignContext *ctx) {
+    return checkAssign(ctx->ID()->getText(), ctx->expr());
+}
+
+antlrcpp::Any SymbolTableVisitor::visitDivAssign(ifccParser::DivAssignContext *ctx) {
+    return checkAssign(ctx->ID()->getText(), ctx->expr());
+}
+
 
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     currentScope->offset = INTSIZE;  // Réinitialisation éventuelle du global
@@ -258,3 +259,29 @@ void SymbolTableVisitor::printGlobalSymbolTable(std::ostream &os) const {
     }
     os << "=============================\n";
 }
+
+antlrcpp::Any SymbolTableVisitor::checkAssign(const std::string &varName, ifccParser::ExprContext* exprCtx) {
+    Scope* scope = currentScope;
+    bool found = false;
+
+    while (scope != nullptr) {
+        if (scope->symbols.find(varName) != scope->symbols.end()) {
+            scope->symbols[varName].initialised = true;
+            found = true;
+            break;
+        }
+        scope = scope->parent;
+    }
+
+    if (!found) {
+        writeError(varName + " is not defined");
+        exit(EXIT_FAILURE);
+    }
+
+    if (exprCtx != nullptr) {
+        visit(exprCtx);
+    }
+
+    return 0;
+}
+
