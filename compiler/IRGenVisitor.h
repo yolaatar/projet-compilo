@@ -21,7 +21,13 @@ class  IRGenVisitor : public ifccBaseVisitor {
         virtual antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
         virtual antlrcpp::Any visitMoinsExpr(ifccParser::MoinsExprContext *ctx) override;
         virtual antlrcpp::Any visitNotExpr(ifccParser::NotExprContext *ctx) override;
+
         virtual antlrcpp::Any visitAssign(ifccParser::AssignContext *ctx) override;
+        virtual antlrcpp::Any visitPlusAssign(ifccParser::PlusAssignContext *ctx) override;
+        virtual antlrcpp::Any visitMinusAssign(ifccParser::MinusAssignContext *ctx) override;
+        virtual antlrcpp::Any visitMulAssign(ifccParser::MulAssignContext *ctx) override;
+        virtual antlrcpp::Any visitDivAssign(ifccParser::DivAssignContext *ctx) override;
+
         virtual antlrcpp::Any visitParExpr(ifccParser::ParExprContext *ctx) override;
         virtual antlrcpp::Any visitAddSubExpr(ifccParser::AddSubExprContext *ctx);
         virtual antlrcpp::Any visitMulDivExpr(ifccParser::MulDivExprContext *ctx);
@@ -45,5 +51,7 @@ class  IRGenVisitor : public ifccBaseVisitor {
         private:
         int tempCpt = 1;
         std::string newTemp();
+
+        antlrcpp::Any generateCompoundAssign(const std::string& varName, ifccParser::ExprContext* expr, const std::string& op);
 };
 

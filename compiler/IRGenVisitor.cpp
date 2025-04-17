@@ -248,6 +248,22 @@ antlrcpp::Any IRGenVisitor::visitAssign(ifccParser::AssignContext *ctx)
     return unique;
 }
 
+antlrcpp::Any IRGenVisitor::visitPlusAssign(ifccParser::PlusAssignContext* ctx) {
+    return generateCompoundAssign(ctx->ID()->getText(), ctx->expr(), "+");
+}
+
+antlrcpp::Any IRGenVisitor::visitMinusAssign(ifccParser::MinusAssignContext* ctx) {
+    return generateCompoundAssign(ctx->ID()->getText(), ctx->expr(), "-");
+}
+
+antlrcpp::Any IRGenVisitor::visitMulAssign(ifccParser::MulAssignContext* ctx) {
+    return generateCompoundAssign(ctx->ID()->getText(), ctx->expr(), "*");
+}
+
+antlrcpp::Any IRGenVisitor::visitDivAssign(ifccParser::DivAssignContext* ctx) {
+    return generateCompoundAssign(ctx->ID()->getText(), ctx->expr(), "/");
+}
+
 antlrcpp::Any IRGenVisitor::visitParExpr(ifccParser::ParExprContext *ctx)
 {
     return this->visit(ctx->expr());
@@ -574,3 +590,28 @@ antlrcpp::Any IRGenVisitor::visitCharExpr(ifccParser::CharExprContext* ctx) {
     bb->add_IRInstr(std::make_unique<IRLdConst>(bb, temp, std::to_string(value)));
     return temp;
 }
+
+antlrcpp::Any IRGenVisitor::generateCompoundAssign(const std::string& varName, ifccParser::ExprContext* expr, const std::string& op)
+{
+    std::string exprTemp = std::any_cast<std::string>(this->visit(expr));
+    std::string unique = cfg->get_stv().getUniqueName(varName);
+    std::string result = cfg->create_new_tempvar();
+    BasicBlock* bb = cfg->current_bb;
+
+    if (op == "+") {
+        bb->add_IRInstr(std::make_unique<IRAdd>(bb, result, unique, exprTemp));
+    } else if (op == "-") {
+        bb->add_IRInstr(std::make_unique<IRSub>(bb, result, unique, exprTemp));
+    } else if (op == "*") {
+        bb->add_IRInstr(std::make_unique<IRMul>(bb, result, unique, exprTemp));
+    } else if (op == "/") {
+        bb->add_IRInstr(std::make_unique<IRDiv>(bb, result, unique, exprTemp));
+    } else {
+        std::cerr << "[ERROR] Unknown compound assignment operator: " << op << "\n";
+        exit(1);
+    }
+
+    bb->add_IRInstr(std::make_unique<IRCopy>(bb, unique, result));
+    return unique;
+}
+
